@@ -27,7 +27,7 @@ std::string read_file(const std::string& path) {
     return contents.str();
 }
 
-// Build one required field whols JSON name matches its C++ member name.
+// Build one required field whose JSON name matches its C++ member name.
 FieldModel make_required_field(const std::string& name, FieldTypeKind kind,
                                const std::string& spelling) {
     return FieldModel{
@@ -109,6 +109,9 @@ int main() {
     assert(bool_result.header.find("namespace cjm::simdjson") !=
            std::string::npos);
     assert(bool_result.header.find("from_json<::BoolValues>(") !=
+           std::string::npos);
+    assert(bool_result.header.find(
+               "detail::decode_object(object, value, error)") !=
            std::string::npos);
     assert(bool_result.header.find("cjm_decode_simdjson_BoolValues") ==
            std::string::npos);

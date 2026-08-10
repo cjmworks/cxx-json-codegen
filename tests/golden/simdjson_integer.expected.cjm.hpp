@@ -56,6 +56,136 @@ std::optional<T> from_json(
 
 #endif
 
+namespace cjm::simdjson::detail {
+
+inline bool decode_object(
+    ::simdjson::ondemand::object& object,
+    ::IntegerValues& value,
+    DecodeError& error) {
+    ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
+
+    // 1. Track required fields for this object.
+    bool has_count = false;
+    bool has_limit = false;
+    bool has_narrow = false;
+
+    // 2. Visit each JSON field once.
+    for (auto field : object) {
+        std::string_view key;
+        runtime_error = field.unescaped_key().get(key);
+        if (runtime_error) {
+            error.code = DecodeErrorCode::syntax_error;
+            error.runtime_error = runtime_error;
+            return false;
+        }
+
+        if (key == "count") {
+            using target_type = decltype(value.count);
+            std::int64_t decoded_count = 0;
+            runtime_error = field.value().get_int64().get(decoded_count);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_integer;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "count", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+
+            const auto target_min = static_cast<std::int64_t>(
+                (std::numeric_limits<target_type>::min)());
+            const auto target_max = static_cast<std::int64_t>(
+                (std::numeric_limits<target_type>::max)());
+            if (decoded_count < target_min || decoded_count > target_max) {
+                error.code = DecodeErrorCode::integer_overflow;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "count", 0});
+                return false;
+            }
+
+            value.count = static_cast<target_type>(decoded_count);
+            has_count = true;
+            continue;
+        }
+        if (key == "limit") {
+            using target_type = decltype(value.limit);
+            std::uint64_t decoded_limit = 0;
+            runtime_error = field.value().get_uint64().get(decoded_limit);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_unsigned_integer;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "limit", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+
+            const auto target_max = static_cast<std::uint64_t>(
+                (std::numeric_limits<target_type>::max)());
+            if (decoded_limit > target_max) {
+                error.code = DecodeErrorCode::integer_overflow;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "limit", 0});
+                return false;
+            }
+
+            value.limit = static_cast<target_type>(decoded_limit);
+            has_limit = true;
+            continue;
+        }
+        if (key == "narrow") {
+            using target_type = decltype(value.narrow);
+            std::int64_t decoded_narrow = 0;
+            runtime_error = field.value().get_int64().get(decoded_narrow);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_integer;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "narrow", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+
+            const auto target_min = static_cast<std::int64_t>(
+                (std::numeric_limits<target_type>::min)());
+            const auto target_max = static_cast<std::int64_t>(
+                (std::numeric_limits<target_type>::max)());
+            if (decoded_narrow < target_min || decoded_narrow > target_max) {
+                error.code = DecodeErrorCode::integer_overflow;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "narrow", 0});
+                return false;
+            }
+
+            value.narrow = static_cast<target_type>(decoded_narrow);
+            has_narrow = true;
+            continue;
+        }
+    }
+
+    // 3. Verify that every required field was present.
+    if (!has_count) {
+        error.code = DecodeErrorCode::missing_required_field;
+        error.path.push_back(
+            {DecodePathSegmentKind::field, "count", 0});
+        return false;
+    }
+    if (!has_limit) {
+        error.code = DecodeErrorCode::missing_required_field;
+        error.path.push_back(
+            {DecodePathSegmentKind::field, "limit", 0});
+        return false;
+    }
+    if (!has_narrow) {
+        error.code = DecodeErrorCode::missing_required_field;
+        error.path.push_back(
+            {DecodePathSegmentKind::field, "narrow", 0});
+        return false;
+    }
+
+    // 4. Report that this object was decoded successfully.
+    return true;
+}
+
+} // namespace cjm::simdjson::detail
+
 namespace cjm::simdjson {
 
 template <>
@@ -86,132 +216,20 @@ from_json<::IntegerValues>(
         error.runtime_error = runtime_error;
         return std::nullopt;
     }
-
-    // 3. Build a new object and track its required fields.
+    // 3. Decode the root object into a new value.
     ::IntegerValues value{};
-    bool has_count = false;
-    bool has_limit = false;
-    bool has_narrow = false;
-
-    // 4. Visit each JSON field once.
-    for (auto field : object) {
-        std::string_view key;
-        runtime_error = field.unescaped_key().get(key);
-        if (runtime_error) {
-            error.code = DecodeErrorCode::syntax_error;
-            error.runtime_error = runtime_error;
-            return std::nullopt;
-        }
-
-        if (key == "count") {
-            using target_type = decltype(value.count);
-            std::int64_t decoded_count = 0;
-            runtime_error = field.value().get_int64().get(decoded_count);
-            if (runtime_error) {
-                error.code = DecodeErrorCode::expected_integer;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "count", 0});
-                error.runtime_error = runtime_error;
-                return std::nullopt;
-            }
-
-            const auto target_min = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::min)());
-            const auto target_max = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::max)());
-            if (decoded_count < target_min || decoded_count > target_max) {
-                error.code = DecodeErrorCode::integer_overflow;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "count", 0});
-                return std::nullopt;
-            }
-
-            value.count = static_cast<target_type>(decoded_count);
-            has_count = true;
-            continue;
-        }
-        if (key == "limit") {
-            using target_type = decltype(value.limit);
-            std::uint64_t decoded_limit = 0;
-            runtime_error = field.value().get_uint64().get(decoded_limit);
-            if (runtime_error) {
-                error.code = DecodeErrorCode::expected_unsigned_integer;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "limit", 0});
-                error.runtime_error = runtime_error;
-                return std::nullopt;
-            }
-
-            const auto target_max = static_cast<std::uint64_t>(
-                (std::numeric_limits<target_type>::max)());
-            if (decoded_limit > target_max) {
-                error.code = DecodeErrorCode::integer_overflow;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "limit", 0});
-                return std::nullopt;
-            }
-
-            value.limit = static_cast<target_type>(decoded_limit);
-            has_limit = true;
-            continue;
-        }
-        if (key == "narrow") {
-            using target_type = decltype(value.narrow);
-            std::int64_t decoded_narrow = 0;
-            runtime_error = field.value().get_int64().get(decoded_narrow);
-            if (runtime_error) {
-                error.code = DecodeErrorCode::expected_integer;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "narrow", 0});
-                error.runtime_error = runtime_error;
-                return std::nullopt;
-            }
-
-            const auto target_min = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::min)());
-            const auto target_max = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::max)());
-            if (decoded_narrow < target_min || decoded_narrow > target_max) {
-                error.code = DecodeErrorCode::integer_overflow;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "narrow", 0});
-                return std::nullopt;
-            }
-
-            value.narrow = static_cast<target_type>(decoded_narrow);
-            has_narrow = true;
-            continue;
-        }
+    if (!detail::decode_object(object, value, error)) {
+        return std::nullopt;
     }
 
-    // 5. Reject non-whitespace content after the root object.
+    // 4. Reject non-whitespace content after the root object.
     if (!document.at_end()) {
         error.code = DecodeErrorCode::trailing_content;
         error.runtime_error = ::simdjson::TRAILING_CONTENT;
         return std::nullopt;
     }
 
-    // 6. Verify that every required field was present.
-    if (!has_count) {
-        error.code = DecodeErrorCode::missing_required_field;
-        error.path.push_back(
-            {DecodePathSegmentKind::field, "count", 0});
-        return std::nullopt;
-    }
-    if (!has_limit) {
-        error.code = DecodeErrorCode::missing_required_field;
-        error.path.push_back(
-            {DecodePathSegmentKind::field, "limit", 0});
-        return std::nullopt;
-    }
-    if (!has_narrow) {
-        error.code = DecodeErrorCode::missing_required_field;
-        error.path.push_back(
-            {DecodePathSegmentKind::field, "narrow", 0});
-        return std::nullopt;
-    }
-
-    // 7. Return the completely decoded object.
+    // 5. Return the completely decoded object.
     return value;
 }
 

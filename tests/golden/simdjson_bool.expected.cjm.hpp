@@ -56,6 +56,55 @@ std::optional<T> from_json(
 
 #endif
 
+namespace cjm::simdjson::detail {
+
+inline bool decode_object(
+    ::simdjson::ondemand::object& object,
+    ::BoolValues& value,
+    DecodeError& error) {
+    ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
+
+    // 1. Track required fields for this object.
+    bool has_enabled = false;
+
+    // 2. Visit each JSON field once.
+    for (auto field : object) {
+        std::string_view key;
+        runtime_error = field.unescaped_key().get(key);
+        if (runtime_error) {
+            error.code = DecodeErrorCode::syntax_error;
+            error.runtime_error = runtime_error;
+            return false;
+        }
+
+        if (key == "enabled") {
+            runtime_error = field.value().get_bool().get(value.enabled);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_bool;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "enabled", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+            has_enabled = true;
+            continue;
+        }
+    }
+
+    // 3. Verify that every required field was present.
+    if (!has_enabled) {
+        error.code = DecodeErrorCode::missing_required_field;
+        error.path.push_back(
+            {DecodePathSegmentKind::field, "enabled", 0});
+        return false;
+    }
+
+    // 4. Report that this object was decoded successfully.
+    return true;
+}
+
+} // namespace cjm::simdjson::detail
+
 namespace cjm::simdjson {
 
 template <>
@@ -86,51 +135,20 @@ from_json<::BoolValues>(
         error.runtime_error = runtime_error;
         return std::nullopt;
     }
-
-    // 3. Build a new object and track its required fields.
+    // 3. Decode the root object into a new value.
     ::BoolValues value{};
-    bool has_enabled = false;
-
-    // 4. Visit each JSON field once.
-    for (auto field : object) {
-        std::string_view key;
-        runtime_error = field.unescaped_key().get(key);
-        if (runtime_error) {
-            error.code = DecodeErrorCode::syntax_error;
-            error.runtime_error = runtime_error;
-            return std::nullopt;
-        }
-
-        if (key == "enabled") {
-            runtime_error = field.value().get_bool().get(value.enabled);
-            if (runtime_error) {
-                error.code = DecodeErrorCode::expected_bool;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "enabled", 0});
-                error.runtime_error = runtime_error;
-                return std::nullopt;
-            }
-            has_enabled = true;
-            continue;
-        }
+    if (!detail::decode_object(object, value, error)) {
+        return std::nullopt;
     }
 
-    // 5. Reject non-whitespace content after the root object.
+    // 4. Reject non-whitespace content after the root object.
     if (!document.at_end()) {
         error.code = DecodeErrorCode::trailing_content;
         error.runtime_error = ::simdjson::TRAILING_CONTENT;
         return std::nullopt;
     }
 
-    // 6. Verify that every required field was present.
-    if (!has_enabled) {
-        error.code = DecodeErrorCode::missing_required_field;
-        error.path.push_back(
-            {DecodePathSegmentKind::field, "enabled", 0});
-        return std::nullopt;
-    }
-
-    // 7. Return the completely decoded object.
+    // 5. Return the completely decoded object.
     return value;
 }
 
