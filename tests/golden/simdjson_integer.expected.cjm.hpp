@@ -24,6 +24,7 @@ enum class DecodeErrorCode {
     trailing_content,
     expected_object,
     expected_bool,
+    expected_string,
     expected_integer,
     expected_unsigned_integer,
     integer_overflow,

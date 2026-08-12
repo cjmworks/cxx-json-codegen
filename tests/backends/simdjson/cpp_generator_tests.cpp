@@ -95,6 +95,19 @@ ProjectModel make_vector_project() {
     return project;
 }
 
+// Build one model containing a required owned string field.
+ProjectModel make_string_project() {
+    TypeModel type;
+    type.name = "StringValues";
+    type.qualified_name = "StringValues";
+    type.fields = {
+        make_required_field("name", FieldTypeKind::String, "std::string")};
+
+    ProjectModel project;
+    project.types = {type};
+    return project;
+}
+
 } // namespace
 
 int main() {
@@ -164,5 +177,30 @@ int main() {
     assert(vector_result.error.find("tags") != std::string::npos);
     assert(vector_result.error.find("std::vector<std::string>") !=
            std::string::npos);
+
+    const auto string_result =
+        cjm::generator::simdjson::generate_header(make_string_project());
+    assert(string_result.success);
+    assert(string_result.error.empty());
+    assert(string_result.header.find("from_json<::StringValues>(") !=
+           std::string::npos);
+    assert(string_result.header.find("std::string_view decoded_name;") !=
+           std::string::npos);
+    assert(string_result.header.find(
+               "field.value().get_string().get(decoded_name)") !=
+           std::string::npos);
+    assert(string_result.header.find("DecodeErrorCode::expected_string") !=
+           std::string::npos);
+    assert(string_result.header.find(
+               "value.name.assign(decoded_name.begin(), decoded_name.end())") !=
+           std::string::npos);
+
+    const auto string_expected =
+        read_file("tests/golden/simdjson_string.expected.cjm.hpp");
+    if (string_result.header != string_expected) {
+        std::cerr << "generated simdjson string header:\n"
+                  << string_result.header;
+    }
+    assert(string_result.header == string_expected);
     return 0;
 }

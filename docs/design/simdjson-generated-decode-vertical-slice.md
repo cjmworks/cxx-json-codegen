@@ -1,7 +1,7 @@
 # simdjson Generated Decode Vertical Slice
 
 Status: design in progress under epic #196. The root/object decode boundary is
-approved for child issue #197; additional type behavior remains pending.
+approved for child issue #197. Required owned string decoding is defined by #198.
 
 ## Goal
 
@@ -118,6 +118,36 @@ overflow behavior.
 
 The simdjson-enabled CTest subset is the integration boundary for this child
 issue.
+
+## #198 Required Owned String Contract
+
+Required `std::string` fields are decoded inside the generated object decoder.
+The decoder reads a simdjson string result into a local `std::string_view` and
+immediately copies that view into the model-owned `std::string` field.
+
+This establishes the ownership boundary:
+
+```text
+simdjson view: valid only during current On-Demand traversal
+model string: owned by the returned C++ object
+```
+
+The generated assignment uses the existing model field storage:
+
+```cpp
+value.name.assign(decoded_name.begin(), decoded_name.end());
+```
+
+A present non-string value reports `DecodeErrorCode::expected_string` with the
+field path and simdjson runtime error. A missing required string uses the same
+`missing_required_field` path contract as existing required scalar fields.
+
+Borrowed string fields, `std::string_view` model fields, optional strings, and
+container strings remain outside #198.
+
+The generated string compile test proves escaped-string success, missing
+required diagnostics, type mismatch diagnostics, and that decoded text can be
+copied out after the public decode call returns.
 
 ## Deferred Epic Work
 

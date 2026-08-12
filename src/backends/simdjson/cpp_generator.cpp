@@ -14,9 +14,9 @@ bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
     case metadata::FieldTypeKind::Bool:
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
+    case metadata::FieldTypeKind::String:
         return true;
     case metadata::FieldTypeKind::FloatingPoint:
-    case metadata::FieldTypeKind::String:
     case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
@@ -60,6 +60,7 @@ void generate_decode_error_model(std::ostringstream& out) {
         << "    trailing_content,\n"
         << "    expected_object,\n"
         << "    expected_bool,\n"
+        << "    expected_string,\n"
         << "    expected_integer,\n"
         << "    expected_unsigned_integer,\n"
         << "    integer_overflow,\n"
@@ -118,6 +119,30 @@ void generate_bool_field_decode(std::ostringstream& out,
     write_line(out, 4, "error.runtime_error = runtime_error;");
     write_line(out, 4, "return false;");
     write_line(out, 3, "}");
+    write_line(out, 3, "has_" + field.name + " = true;");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
+// Generate one required owned string field decoder.
+void generate_string_field_decode(std::ostringstream& out,
+                                  const metadata::FieldModel& field) {
+    const std::string decoded_name = "decoded_" + field.name;
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    write_line(out, 3, "std::string_view " + decoded_name + ";");
+    write_line(out, 3,
+               "runtime_error = field.value().get_string().get(" +
+                   decoded_name + ");");
+    write_line(out, 3, "if (runtime_error) {");
+    write_line(out, 4, "error.code = DecodeErrorCode::expected_string;");
+    generate_field_error_path(out, field, 4);
+    write_line(out, 4, "error.runtime_error = runtime_error;");
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+    write_line(out, 3,
+               "value." + field.name + ".assign(" + decoded_name +
+                   ".begin(), " + decoded_name + ".end());");
     write_line(out, 3, "has_" + field.name + " = true;");
     write_line(out, 3, "continue;");
     write_line(out, 2, "}");
@@ -195,6 +220,8 @@ void generate_field_decode(std::ostringstream& out,
         return;
     case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::String:
+        generate_string_field_decode(out, field);
+        return;
     case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
