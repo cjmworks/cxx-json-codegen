@@ -2,6 +2,7 @@
 
 Status: design in progress under epic #196. The root/object decode boundary is
 approved for child issue #197. Required owned string decoding is defined by #198.
+Optional integer presence behavior is defined by #199.
 
 ## Goal
 
@@ -149,12 +150,32 @@ The generated string compile test proves escaped-string success, missing
 required diagnostics, type mismatch diagnostics, and that decoded text can be
 copied out after the public decode call returns.
 
+## #199 Optional Integer Contract
+
+Optional `std::optional<std::int64_t>` fields are decoded inside the generated
+object decoder. The decoder initializes the model field to `std::nullopt` when
+the JSON field is seen, keeps it disengaged for JSON `null`, and assigns the
+decoded integer when the JSON value is a signed integer.
+
+Missing optional fields are successful and leave the model field disengaged.
+Optional fields do not create required-field presence flags and do not
+participate in missing-required-field checks.
+
+A present non-integer non-null value reports `DecodeErrorCode::expected_integer`
+with the field path and simdjson runtime error.
+
+Only `std::optional<std::int64_t>` is supported by #199. Optional strings,
+optional unsigned integers, optional narrow integers, optional nested models,
+containers, and encode remain outside this slice.
+
+The generated optional integer compile test proves missing-field success,
+explicit-null success, present signed-integer success, and present wrong-type
+diagnostics through the public `from_json` entry point.
+
 ## Deferred Epic Work
 
 Later child issues define and implement:
 
-- required owned strings;
-- optional integer missing, null, and present behavior;
 - one nested generated model and parent-path prepending;
 - combined integration, golden, coexistence, and documentation verification.
 
