@@ -324,7 +324,7 @@ void generate_object_decode_function(std::ostringstream& out,
         << "    // 3. Verify that every required field was present.\n";
 
     for (const auto& field : type.fields) {
-        if (field.json.ignored) {
+        if (!requires_presence_check(field)) {
             continue;
         }
 

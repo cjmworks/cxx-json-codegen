@@ -262,10 +262,19 @@ int main() {
         assert(result.header.find(
                    "field.value().get_int64().get(decoded_maybe_count)") !=
                std::string::npos);
+        assert(result.header.find("if (!has_maybe_count)") ==
+               std::string::npos);
         assert(result.header.find("value.maybe_count = decoded_maybe_count") !=
                std::string::npos);
         assert(result.header.find("DecodeErrorCode::expected_integer") !=
                std::string::npos);
+        const auto optional_integer_expected = read_file(
+            "tests/golden/simdjson_optional_integer.expected.cjm.hpp");
+        if (result.header != optional_integer_expected) {
+            std::cerr << "generated simdjson optional integer header:\n"
+                      << result.header;
+        }
+        assert(result.header == optional_integer_expected);
     }
     return 0;
 }
