@@ -182,6 +182,68 @@ ProjectModel make_nested_project() {
     return project;
 }
 
+// Build one representative vertical-slice model.
+ProjectModel make_vertical_slice_project() {
+    TypeModel address;
+    address.name = "SliceAddress";
+    address.qualified_name = "SliceAddress";
+    address.fields = {
+        make_required_field("city", FieldTypeKind::String, "std::string"),
+    };
+
+    FieldType optional_inner{
+        FieldTypeKind::SignedInteger,
+        "std::int64_t",
+        "std::int64_t",
+    };
+
+    FieldType optional_type{
+        FieldTypeKind::Optional,
+        "std::optional<std::int64_t>",
+        "std::optional",
+        {optional_inner},
+    };
+
+    FieldType address_type{
+        FieldTypeKind::UserDefined,
+        "SliceAddress",
+        "SliceAddress",
+    };
+
+    TypeModel user;
+    user.name = "SliceUser";
+    user.qualified_name = "SliceUser";
+    user.fields = {
+        make_required_field("id", FieldTypeKind::SignedInteger,
+                            "std::int64_t"),
+        make_required_field("name", FieldTypeKind::String, "std::string"),
+        FieldModel{
+            "maybe_count",
+            optional_type,
+            JsonFieldMetadata{"maybe_count", false, false},
+            SourceLocation{
+                "tests/fixtures/slice_user.hpp",
+                1,
+                1,
+            },
+        },
+        FieldModel{
+            "address",
+            address_type,
+            JsonFieldMetadata{"address", false, false},
+            SourceLocation{
+                "tests/fixtures/slice_user.hpp",
+                1,
+                1,
+            },
+        },
+    };
+
+    ProjectModel project;
+    project.types = {address, user};
+    return project;
+}
+
 } // namespace
 
 int main() {
@@ -344,6 +406,29 @@ int main() {
                       << result.header;
         }
         assert(result.header == nested_expected);
+    }
+    {
+        const auto result = cjm::generator::simdjson::generate_header(
+            make_vertical_slice_project());
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find("from_json<::SliceUser>(") !=
+               std::string::npos);
+        assert(result.header.find("std::string_view decoded_name;") !=
+               std::string::npos);
+        assert(result.header.find("value.maybe_count = std::nullopt;") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "detail::decode_object(decoded_address, "
+                   "value.address, error)") != std::string::npos);
+
+        const auto vertical_slice_expected =
+            read_file("tests/golden/simdjson_vertical_slice.expected.cjm.hpp");
+        if (result.header != vertical_slice_expected) {
+            std::cerr << "generated simdjson vertical slice header:\n"
+                      << result.header;
+        }
+        assert(result.header == vertical_slice_expected);
     }
     return 0;
 }

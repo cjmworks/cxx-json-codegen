@@ -92,6 +92,7 @@ epics. Its completed epics are:
 ```text
 v0.6 Foundation - Runtime Semantics and Conformance
 v0.6 simdjson On-Demand Scalar Decode Spike
+v0.6 simdjson Native Baselines And Generated Vertical Slice
 ```
 
 The foundation defines what CJM means by JSON runtime behavior. The scalar
@@ -218,8 +219,7 @@ control flow and error translation are understood.
 
 ## Work Package C - simdjson Native Baselines And Generated Vertical Slice
 
-Status: native C++17 scalar baseline completed; generated vertical slice
-pending.
+Status: completed as internal research evidence.
 
 Before broader generated-codec claims, compare the generated path with the
 strongest relevant native paths in the pinned simdjson release.
@@ -268,7 +268,7 @@ These observations preserve the existing recommendation. The next generated
 slice should extend CJM's explicit one-pass decoder rather than replace it with
 native model binding. The native specialization remains a test-only control.
 
-The first meaningful generated vertical slice should cover:
+The completed generated vertical slice covers:
 
 - required unsigned integer and string fields
 - one optional integer
@@ -285,6 +285,17 @@ Different C++ standards and semantic options must be reported explicitly. This
 work package tests whether CJM adds value over native typed conversion; it does
 not assume that simdjson lacks model binding. A reflection-based result cannot
 serve as evidence for the C++17 generated-code contract.
+
+The generated vertical slice records that CJM Metadata IR can drive readable
+C++17 simdjson On-Demand code for required scalar fields, owned `std::string`,
+`std::optional<std::int64_t>` presence, and one required nested generated model.
+The root wrapper owns padded input, parser, and document lifetime. Nested model
+decoding composes already-open object decoders and prepends parent field
+segments to child-relative paths.
+
+This work package still does not promote simdjson to an official backend. It
+does not add a user-facing CLI or CMake backend-selection path, does not cover
+encode, and makes no compile-time or runtime performance claim.
 
 ## Work Package D - simdjson Decode MVP
 

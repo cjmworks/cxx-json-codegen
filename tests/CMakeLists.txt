@@ -89,6 +89,21 @@ if (CJM_ENABLE_SIMDJSON)
   target_link_libraries(cjm_simdjson_nested_generated_compile_tests PRIVATE simdjson::simdjson)
   add_test(NAME cjm_simdjson_nested_generated_compile_tests
            COMMAND cjm_simdjson_nested_generated_compile_tests)
+
+  add_executable(cjm_simdjson_vertical_slice_generated_compile_tests
+    ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/vertical_slice_generated_compile_tests.cpp
+  )
+  target_compile_features(cjm_simdjson_vertical_slice_generated_compile_tests PRIVATE cxx_std_17)
+  target_include_directories(cjm_simdjson_vertical_slice_generated_compile_tests PRIVATE ${PROJECT_SOURCE_DIR})
+  target_link_libraries(cjm_simdjson_vertical_slice_generated_compile_tests PRIVATE simdjson::simdjson)
+  add_test(NAME cjm_simdjson_vertical_slice_generated_compile_tests.success
+           COMMAND cjm_simdjson_vertical_slice_generated_compile_tests success)
+  add_test(NAME cjm_simdjson_vertical_slice_generated_compile_tests.optional_type_mismatch
+           COMMAND cjm_simdjson_vertical_slice_generated_compile_tests optional_type_mismatch)
+  add_test(NAME cjm_simdjson_vertical_slice_generated_compile_tests.nested_non_object
+           COMMAND cjm_simdjson_vertical_slice_generated_compile_tests nested_non_object)
+  add_test(NAME cjm_simdjson_vertical_slice_generated_compile_tests.nested_child_missing
+           COMMAND cjm_simdjson_vertical_slice_generated_compile_tests nested_child_missing)
 endif()
 
 # METADATA tests below...

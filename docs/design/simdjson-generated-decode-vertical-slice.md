@@ -1,9 +1,10 @@
 # simdjson Generated Decode Vertical Slice
 
-Status: design in progress under epic #196. The root/object decode boundary is
-approved for child issue #197. Required owned string decoding is defined by #198.
-Optional integer presence behavior is defined by #199.
-Required nested generated model composition is defined by #200.
+Status: completed as internal research evidence under epic #196. The slice
+covers the root/object decode boundary from #197, required owned strings from
+#198, optional integer presence behavior from #199, required nested generated
+model composition from #200, and representative integration verification from
+#201.
 
 ## Goal
 
@@ -204,11 +205,34 @@ fields in non-declaration order, missing required nested field diagnostics,
 non-object nested value diagnostics, child missing-field path composition, and
 unknown child-field ignoring through the public `from_json` entry point.
 
-## Deferred Epic Work
+## #201 Vertical Slice Verification
 
-Later child issues define and implement:
+The representative vertical-slice model combines one required signed integer,
+one required owned `std::string`, one `std::optional<std::int64_t>`, and one
+required nested generated model.
 
-- combined integration, golden, coexistence, and documentation verification.
+The vertical-slice golden output proves that these supported pieces compose into
+one deterministic generated C++17 header. The generated compile tests register
+independently runnable CTest cases for representative success, optional
+type-mismatch diagnostics, nested non-object diagnostics, and nested child
+missing-field path composition.
+
+The completion gate for this epic is the simdjson-enabled Debug CTest suite and
+a default simdjson-disabled Debug CTest suite. The latter verifies that simdjson
+and Catch2 remain optional development/test dependencies rather than public
+requirements for default consumers.
+
+## Outcome
+
+The vertical slice validates generated C++17 simdjson On-Demand composition for
+the approved subset. It remains internal research evidence.
+
+CJM does not yet expose simdjson through CLI or CMake backend selection. The
+slice does not support encode, floating point, enums, containers, borrowed
+strings, optional nested models, recursive models, or public backend promotion.
+It also makes no compile-time or runtime performance conclusion.
+
+## Deferred Work
 
 Floating point, enums, containers, encode, borrowed strings, optional nested
 models, recursive models, public backend selection, and performance claims

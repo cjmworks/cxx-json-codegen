@@ -834,6 +834,7 @@ The completed v0.6 epics are:
 ```text
 v0.6 Foundation - Runtime Semantics and Conformance
 v0.6 simdjson On-Demand Scalar Decode Spike
+v0.6 simdjson Native Baselines And Generated Vertical Slice
 ```
 
 The foundation defined CJM runtime semantics before simdjson code. The scalar
@@ -882,12 +883,12 @@ Completed runtime backend work packages:
 - Conformance Fixture Skeleton
 - Static Backend Selection Design
 - simdjson On-Demand decode spike
+- simdjson native typed-conversion baselines
+- simdjson generated-codec vertical slice with owned strings, optional integer
+  presence, and one required nested generated model
 
 Remaining runtime backend work packages:
 
-- simdjson native typed-conversion baselines
-- simdjson generated-codec vertical slice with owned strings, optional presence,
-  and one nested model
 - simdjson decode MVP over a limited conformance subset
 - simdjson builder / encode spike
 - simdjson experimental backend with decode, encode, conformance, and docs
