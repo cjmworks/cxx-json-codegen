@@ -108,99 +108,149 @@ ProjectModel make_string_project() {
     return project;
 }
 
+// Build one model containing an optional signed integer field.
+ProjectModel make_optional_integer_project() {
+    FieldType inner{
+        FieldTypeKind::SignedInteger,
+        "std::int64_t",
+        "std::int64_t",
+    };
+
+    FieldType optional_type{
+        FieldTypeKind::Optional,
+        "std::optional<std::int64_t>",
+        "std::optional",
+        {inner},
+    };
+
+    TypeModel type;
+    type.name = "OptionalIntegerValues";
+    type.qualified_name = "OptionalIntegerValues";
+    type.fields = {
+        FieldModel{
+            "maybe_count",
+            optional_type,
+            JsonFieldMetadata{"maybe_count", false, false},
+            SourceLocation{
+                "tests/fixtures/optional_integer_values.hpp",
+                1,
+                1,
+            },
+        },
+    };
+
+    ProjectModel project;
+    project.types = {type};
+    return project;
+}
+
 } // namespace
 
 int main() {
-    const auto bool_result =
-        cjm::generator::simdjson::generate_header(make_bool_project());
+    {
+        const auto bool_result =
+            cjm::generator::simdjson::generate_header(make_bool_project());
 
-    assert(bool_result.success);
-    assert(bool_result.error.empty());
-    assert(!bool_result.header.empty());
-    assert(bool_result.header.find("#include <simdjson.h>") !=
-           std::string::npos);
-    assert(bool_result.header.find("namespace cjm::simdjson") !=
-           std::string::npos);
-    assert(bool_result.header.find("from_json<::BoolValues>(") !=
-           std::string::npos);
-    assert(bool_result.header.find(
-               "detail::decode_object(object, value, error)") !=
-           std::string::npos);
-    assert(bool_result.header.find("cjm_decode_simdjson_BoolValues") ==
-           std::string::npos);
+        assert(bool_result.success);
+        assert(bool_result.error.empty());
+        assert(!bool_result.header.empty());
+        assert(bool_result.header.find("#include <simdjson.h>") !=
+               std::string::npos);
+        assert(bool_result.header.find("namespace cjm::simdjson") !=
+               std::string::npos);
+        assert(bool_result.header.find("from_json<::BoolValues>(") !=
+               std::string::npos);
+        assert(bool_result.header.find(
+                   "detail::decode_object(object, value, error)") !=
+               std::string::npos);
+        assert(bool_result.header.find("cjm_decode_simdjson_BoolValues") ==
+               std::string::npos);
 
-    const auto expected =
-        read_file("tests/golden/simdjson_bool.expected.cjm.hpp");
-    if (bool_result.header != expected) {
-        std::cerr << "generated simdjson header: \n" << bool_result.header;
+        const auto expected =
+            read_file("tests/golden/simdjson_bool.expected.cjm.hpp");
+        if (bool_result.header != expected) {
+            std::cerr << "generated simdjson header: \n" << bool_result.header;
+        }
+        assert(bool_result.header == expected);
+
+        assert(bool_result.header.find("bool has_enabled = false;") !=
+               std::string::npos);
+        assert(bool_result.header.find("for (auto field : object)") !=
+               std::string::npos);
+        assert(bool_result.header.find("field.unescaped_key().get(key)") !=
+               std::string::npos);
+        assert(bool_result.header.find(
+                   "field.value().get_bool().get(value.enabled)") !=
+               std::string::npos);
     }
-    assert(bool_result.header == expected);
+    {
+        const auto integer_result =
+            cjm::generator::simdjson::generate_header(make_integer_project());
+        assert(integer_result.success);
+        assert(integer_result.error.empty());
+        assert(integer_result.header.find("from_json<::IntegerValues>(") !=
+               std::string::npos);
+        assert(integer_result.header.find("get_int64().get(decoded_count)") !=
+               std::string::npos);
+        assert(integer_result.header.find("get_uint64().get(decoded_limit)") !=
+               std::string::npos);
+        assert(integer_result.header.find(
+                   "(std::numeric_limits<target_type>::max)()") !=
+               std::string::npos);
+        assert(integer_result.header.find(
+                   "DecodeErrorCode::integer_overflow") != std::string::npos);
 
-    assert(bool_result.header.find("bool has_enabled = false;") !=
-           std::string::npos);
-    assert(bool_result.header.find("for (auto field : object)") !=
-           std::string::npos);
-    assert(bool_result.header.find("field.unescaped_key().get(key)") !=
-           std::string::npos);
-    assert(bool_result.header.find(
-               "field.value().get_bool().get(value.enabled)") !=
-           std::string::npos);
-
-    const auto integer_result =
-        cjm::generator::simdjson::generate_header(make_integer_project());
-    assert(integer_result.success);
-    assert(integer_result.error.empty());
-    assert(integer_result.header.find("from_json<::IntegerValues>(") !=
-           std::string::npos);
-    assert(integer_result.header.find("get_int64().get(decoded_count)") !=
-           std::string::npos);
-    assert(integer_result.header.find("get_uint64().get(decoded_limit)") !=
-           std::string::npos);
-    assert(integer_result.header.find(
-               "(std::numeric_limits<target_type>::max)()") !=
-           std::string::npos);
-    assert(integer_result.header.find("DecodeErrorCode::integer_overflow") !=
-           std::string::npos);
-
-    const auto integer_expected =
-        read_file("tests/golden/simdjson_integer.expected.cjm.hpp");
-    if (integer_result.header != integer_expected) {
-        std::cerr << "generated simdjson integer header:\n"
-                  << integer_result.header;
+        const auto integer_expected =
+            read_file("tests/golden/simdjson_integer.expected.cjm.hpp");
+        if (integer_result.header != integer_expected) {
+            std::cerr << "generated simdjson integer header:\n"
+                      << integer_result.header;
+        }
+        assert(integer_result.header == integer_expected);
     }
-    assert(integer_result.header == integer_expected);
-
-    const auto vector_result =
-        cjm::generator::simdjson::generate_header(make_vector_project());
-    assert(!vector_result.success);
-    assert(vector_result.header.empty());
-    assert(vector_result.error.find("tags") != std::string::npos);
-    assert(vector_result.error.find("std::vector<std::string>") !=
-           std::string::npos);
-
-    const auto string_result =
-        cjm::generator::simdjson::generate_header(make_string_project());
-    assert(string_result.success);
-    assert(string_result.error.empty());
-    assert(string_result.header.find("from_json<::StringValues>(") !=
-           std::string::npos);
-    assert(string_result.header.find("std::string_view decoded_name;") !=
-           std::string::npos);
-    assert(string_result.header.find(
-               "field.value().get_string().get(decoded_name)") !=
-           std::string::npos);
-    assert(string_result.header.find("DecodeErrorCode::expected_string") !=
-           std::string::npos);
-    assert(string_result.header.find(
-               "value.name.assign(decoded_name.begin(), decoded_name.end())") !=
-           std::string::npos);
-
-    const auto string_expected =
-        read_file("tests/golden/simdjson_string.expected.cjm.hpp");
-    if (string_result.header != string_expected) {
-        std::cerr << "generated simdjson string header:\n"
-                  << string_result.header;
+    {
+        const auto vector_result =
+            cjm::generator::simdjson::generate_header(make_vector_project());
+        assert(!vector_result.success);
+        assert(vector_result.header.empty());
+        assert(vector_result.error.find("tags") != std::string::npos);
+        assert(vector_result.error.find("std::vector<std::string>") !=
+               std::string::npos);
     }
-    assert(string_result.header == string_expected);
+    {
+        const auto string_result =
+            cjm::generator::simdjson::generate_header(make_string_project());
+        assert(string_result.success);
+        assert(string_result.error.empty());
+        assert(string_result.header.find("from_json<::StringValues>(") !=
+               std::string::npos);
+        assert(string_result.header.find("std::string_view decoded_name;") !=
+               std::string::npos);
+        assert(string_result.header.find(
+                   "field.value().get_string().get(decoded_name)") !=
+               std::string::npos);
+        assert(string_result.header.find("DecodeErrorCode::expected_string") !=
+               std::string::npos);
+        assert(string_result.header.find("value.name.assign(decoded_name.begin("
+                                         "), decoded_name.end())") !=
+               std::string::npos);
+
+        const auto string_expected =
+            read_file("tests/golden/simdjson_string.expected.cjm.hpp");
+        if (string_result.header != string_expected) {
+            std::cerr << "generated simdjson string header:\n"
+                      << string_result.header;
+        }
+        assert(string_result.header == string_expected);
+    }
+    {
+        const auto optional_integer_result =
+            cjm::generator::simdjson::generate_header(
+                make_optional_integer_project());
+        assert(optional_integer_result.success);
+        assert(optional_integer_result.error.empty());
+        assert(optional_integer_result.header.find(
+                   "from_json<::OptionalIntegerValues>(") != std::string::npos);
+    }
     return 0;
 }

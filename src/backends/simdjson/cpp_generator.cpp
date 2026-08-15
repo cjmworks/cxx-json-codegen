@@ -8,6 +8,15 @@
 namespace cjm::generator::simdjson {
 namespace {
 
+// Return whether an optional field has a complete generated decoder.
+bool is_supported_optional_field(const metadata::FieldType& type) {
+    return type.kind == metadata::FieldTypeKind::Optional &&
+           type.arguments.size() == 1 &&
+           type.arguments[0].kind == metadata::FieldTypeKind::SignedInteger &&
+           type.arguments[0].spelling == "std::int64_t" &&
+           type.arguments[0].qualified_name == "std::int64_t";
+}
+
 // Return whether a Metadata IR kind has a complete generated decoder.
 bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
     switch (kind) {
@@ -21,7 +30,6 @@ bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
-    case metadata::FieldTypeKind::Optional:
     case metadata::FieldTypeKind::UserDefined:
         return false;
     }
@@ -366,7 +374,8 @@ std::string validate_project(const metadata::ProjectModel& project) {
             if (field.json.ignored) {
                 continue;
             }
-            if (is_supported_scalar_kind(field.type.kind)) {
+            if (is_supported_scalar_kind(field.type.kind) ||
+                is_supported_optional_field(field.type)) {
                 continue;
             }
 
