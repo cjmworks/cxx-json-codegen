@@ -30,10 +30,17 @@ bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
+    case metadata::FieldTypeKind::Optional:
     case metadata::FieldTypeKind::UserDefined:
         return false;
     }
     return false;
+}
+
+// Return whether a field must be present in the decoded object.
+bool requires_presence_check(const metadata::FieldModel& field) {
+    return !field.json.ignored &&
+           field.type.kind != metadata::FieldTypeKind::Optional;
 }
 
 // Return the globally qualified C++ name of one generated model.
@@ -215,6 +222,33 @@ void generate_integer_field_decode(std::ostringstream& out,
     write_line(out, 2, "}");
 }
 
+// Generate one optional signed 64-bit integer field decoder.
+void generate_optional_integer_field_decode(std::ostringstream& out,
+                                            const metadata::FieldModel& field) {
+    const std::string decoded_name = "decoded_" + field.name;
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    write_line(out, 3, "value." + field.name + " = std::nullopt;");
+    write_line(out, 3, "if (field.value().is_null()) {");
+    write_line(out, 4, "continue;");
+    write_line(out, 3, "}");
+
+    write_line(out, 3, "std::int64_t " + decoded_name + " = 0;");
+    write_line(out, 3,
+               "runtime_error = field.value().get_int64().get(" + decoded_name +
+                   ");");
+    write_line(out, 3, "if (runtime_error) {");
+    write_line(out, 4, "error.code = DecodeErrorCode::expected_integer;");
+    generate_field_error_path(out, field, 4);
+    write_line(out, 4, "error.runtime_error = runtime_error;");
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+
+    write_line(out, 3, "value." + field.name + " = " + decoded_name + ";");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
 // Generate one supported scalar field decoder.
 void generate_field_decode(std::ostringstream& out,
                            const metadata::FieldModel& field) {
@@ -235,6 +269,8 @@ void generate_field_decode(std::ostringstream& out,
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
+        generate_optional_integer_field_decode(out, field);
+        return;
     case metadata::FieldTypeKind::UserDefined:
         return;
     }
@@ -259,7 +295,7 @@ void generate_object_decode_function(std::ostringstream& out,
     write_line(out, 1, "// 1. Track required fields for this object.");
 
     for (const auto& field : type.fields) {
-        if (!field.json.ignored) {
+        if (requires_presence_check(field)) {
             out << "    bool has_" << field.name << " = false;\n";
         }
     }

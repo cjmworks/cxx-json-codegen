@@ -244,13 +244,28 @@ int main() {
         assert(string_result.header == string_expected);
     }
     {
-        const auto optional_integer_result =
-            cjm::generator::simdjson::generate_header(
-                make_optional_integer_project());
-        assert(optional_integer_result.success);
-        assert(optional_integer_result.error.empty());
-        assert(optional_integer_result.header.find(
-                   "from_json<::OptionalIntegerValues>(") != std::string::npos);
+        const auto result = cjm::generator::simdjson::generate_header(
+            make_optional_integer_project());
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find("from_json<::OptionalIntegerValues>(") !=
+               std::string::npos);
+
+        assert(result.header.find("bool has_maybe_count = false;") ==
+               std::string::npos);
+        assert(result.header.find("value.maybe_count = std::nullopt;") !=
+               std::string::npos);
+        assert(result.header.find("field.value().is_null()") !=
+               std::string::npos);
+        assert(result.header.find("std::int64_t decoded_maybe_count = 0;") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "field.value().get_int64().get(decoded_maybe_count)") !=
+               std::string::npos);
+        assert(result.header.find("value.maybe_count = decoded_maybe_count") !=
+               std::string::npos);
+        assert(result.header.find("DecodeErrorCode::expected_integer") !=
+               std::string::npos);
     }
     return 0;
 }
