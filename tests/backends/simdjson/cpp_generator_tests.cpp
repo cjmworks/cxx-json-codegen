@@ -144,6 +144,44 @@ ProjectModel make_optional_integer_project() {
     return project;
 }
 
+// Build one root model containing one required nested generated model.
+ProjectModel make_nested_project() {
+    TypeModel address;
+    address.name = "Address";
+    address.qualified_name = "Address";
+    address.fields = {
+        make_required_field("city", FieldTypeKind::String, "std::string"),
+    };
+
+    FieldType address_type{
+        FieldTypeKind::UserDefined,
+        "Address",
+        "Address",
+    };
+
+    TypeModel user;
+    user.name = "NestedUser";
+    user.qualified_name = "NestedUser";
+    user.fields = {
+        make_required_field("id", FieldTypeKind::SignedInteger,
+                            "std::int64_t"),
+        FieldModel{
+            "address",
+            address_type,
+            JsonFieldMetadata{"address", false, false},
+            SourceLocation{
+                "tests/fixtures/nested_user.hpp",
+                1,
+                1,
+            },
+        },
+    };
+
+    ProjectModel project;
+    project.types = {address, user};
+    return project;
+}
+
 } // namespace
 
 int main() {
@@ -275,6 +313,37 @@ int main() {
                       << result.header;
         }
         assert(result.header == optional_integer_expected);
+    }
+    {
+        const auto result =
+            cjm::generator::simdjson::generate_header(make_nested_project());
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find("from_json<::Address>(") !=
+               std::string::npos);
+        assert(result.header.find("from_json<::NestedUser>(") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "::simdjson::ondemand::object decoded_address;") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "field.value().get_object().get(decoded_address)") !=
+               std::string::npos);
+        assert(result.header.find("detail::decode_object(decoded_address, "
+                                  "value.address, error)") !=
+               std::string::npos);
+        assert(result.header.find("error.path.insert(") != std::string::npos);
+        assert(result.header.find(
+                   "{DecodePathSegmentKind::field, \"address\", 0}") !=
+               std::string::npos);
+
+        const auto nested_expected =
+            read_file("tests/golden/simdjson_nested.expected.cjm.hpp");
+        if (result.header != nested_expected) {
+            std::cerr << "generated simdjson nested header:\n"
+                      << result.header;
+        }
+        assert(result.header == nested_expected);
     }
     return 0;
 }

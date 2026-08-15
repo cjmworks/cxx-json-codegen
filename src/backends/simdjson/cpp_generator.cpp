@@ -17,6 +17,12 @@ bool is_supported_optional_field(const metadata::FieldType& type) {
            type.arguments[0].qualified_name == "std::int64_t";
 }
 
+// Return whether a user-defined field has a complete generated decoder.
+bool is_supported_user_defined_field(const metadata::FieldType& type) {
+    return type.kind == metadata::FieldTypeKind::UserDefined &&
+           (!type.qualified_name.empty() || !type.spelling.empty());
+}
+
 // Return whether a Metadata IR kind has a complete generated decoder.
 bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
     switch (kind) {
@@ -116,6 +122,17 @@ void generate_field_error_path(std::ostringstream& out,
                                const metadata::FieldModel& field,
                                std::size_t indent_level) {
     write_line(out, indent_level, "error.path.push_back(");
+    write_line(out, indent_level + 1,
+               "{DecodePathSegmentKind::field, \"" + field.json.name +
+                   "\", 0});");
+}
+
+// Generate one structured field path prepend.
+void generate_prepend_field_error_path(std::ostringstream& out,
+                                       const metadata::FieldModel& field,
+                                       std::size_t indent_level) {
+    write_line(out, indent_level, "error.path.insert(");
+    write_line(out, indent_level + 1, "error.path.begin(),");
     write_line(out, indent_level + 1,
                "{DecodePathSegmentKind::field, \"" + field.json.name +
                    "\", 0});");
@@ -249,7 +266,34 @@ void generate_optional_integer_field_decode(std::ostringstream& out,
     write_line(out, 2, "}");
 }
 
-// Generate one supported scalar field decoder.
+// Generate one required nested object field decoder.
+void generate_user_defined_field_decode(std::ostringstream& out,
+                                        const metadata::FieldModel& field) {
+    const std::string decoded_name = "decoded_" + field.name;
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    write_line(out, 3, "::simdjson::ondemand::object " + decoded_name + ";");
+    write_line(out, 3,
+               "runtime_error = field.value().get_object().get(" +
+                   decoded_name + ");");
+    write_line(out, 3, "if (runtime_error) {");
+    write_line(out, 4, "error.code = DecodeErrorCode::expected_object;");
+    generate_field_error_path(out, field, 4);
+    write_line(out, 4, "error.runtime_error = runtime_error;");
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+    write_line(out, 3,
+               "if (!detail::decode_object(" + decoded_name + ", value." +
+                   field.name + ", error)) {");
+    generate_prepend_field_error_path(out, field, 4);
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+    write_line(out, 3, "has_" + field.name + " = true;");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
+// Generate one supported field decoder.
 void generate_field_decode(std::ostringstream& out,
                            const metadata::FieldModel& field) {
     switch (field.type.kind) {
@@ -272,6 +316,7 @@ void generate_field_decode(std::ostringstream& out,
         generate_optional_integer_field_decode(out, field);
         return;
     case metadata::FieldTypeKind::UserDefined:
+        generate_user_defined_field_decode(out, field);
         return;
     }
 }
@@ -411,7 +456,8 @@ std::string validate_project(const metadata::ProjectModel& project) {
                 continue;
             }
             if (is_supported_scalar_kind(field.type.kind) ||
-                is_supported_optional_field(field.type)) {
+                is_supported_optional_field(field.type) ||
+                is_supported_user_defined_field(field.type)) {
                 continue;
             }
 

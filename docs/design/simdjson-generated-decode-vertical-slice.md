@@ -3,6 +3,7 @@
 Status: design in progress under epic #196. The root/object decode boundary is
 approved for child issue #197. Required owned string decoding is defined by #198.
 Optional integer presence behavior is defined by #199.
+Required nested generated model composition is defined by #200.
 
 ## Goal
 
@@ -172,11 +173,41 @@ The generated optional integer compile test proves missing-field success,
 explicit-null success, present signed-integer success, and present wrong-type
 diagnostics through the public `from_json` entry point.
 
+## #200 Required Nested Model Contract
+
+Required user-defined fields are decoded by opening the child JSON value as a
+simdjson object and passing that already-open object to the generated child
+model object decoder.
+
+The root wrapper remains the only generated code that owns padded input, parser,
+and document storage. Nested decoding does not create a second parser and does
+not restart traversal through the root document.
+
+Each object decoder keeps its own required-field presence state and consumes its
+own object with one forward field iteration. Unknown fields remain ignored at
+both root and child levels.
+
+A present non-object nested value reports `DecodeErrorCode::expected_object`
+with the parent field path. A missing required nested field reports the existing
+`missing_required_field` code with the parent field path.
+
+Child object decoders report paths relative to the child object they receive. If
+a child decoder fails, the parent prepends its own field segment so the public
+root error path identifies the full location, such as `address.city`.
+
+Only required, non-recursive generated model fields are supported by #200.
+Optional nested models, nested containers, arrays, recursive models, and encode
+remain outside this slice.
+
+The generated nested compile test proves nested success with root and child
+fields in non-declaration order, missing required nested field diagnostics,
+non-object nested value diagnostics, child missing-field path composition, and
+unknown child-field ignoring through the public `from_json` entry point.
+
 ## Deferred Epic Work
 
 Later child issues define and implement:
 
-- one nested generated model and parent-path prepending;
 - combined integration, golden, coexistence, and documentation verification.
 
 Floating point, enums, containers, encode, borrowed strings, optional nested
