@@ -487,6 +487,9 @@ Current status:
   that Metadata IR can drive an optional, one-pass generated decoder
 - the C++17 simdjson native custom-type baseline is complete and remains a
   test-only comparison for API and error-shape differences
+- the simdjson generated decode vertical slice is complete internally and
+  verifies owned strings, optional integer presence, and one required nested
+  generated model through generated C++17
 - CJM has a parser -> semantic analysis -> Metadata IR pipeline with
   `nlohmann/json`, generated model-contract, and JSON Schema backends
 - First official C++ runtime integration backend: `nlohmann/json`
@@ -498,14 +501,14 @@ Current status:
 
 Next planned line:
 
-- v0.6 continues with a simdjson generated-codec vertical slice covering owned
-  strings, optional presence, and one nested model
+- v0.6 continues with decode MVP scoping, encode spike planning, and backend
+  promotion evidence review
 - the first public v0.6 tag will be assigned only when the result is a
   user-consumable capability snapshot
 
 No simdjson, Glaze, or yyjson backend is available in the v0.5.2 release.
-The merged simdjson code remains an internal experimental spike: it has no
-public backend-selection path and makes no performance claim.
+The merged simdjson code remains internal research evidence: it has no public
+backend-selection path and makes no performance claim.
 
 ---
 
@@ -609,6 +612,7 @@ See [ROADMAP.md](ROADMAP.md) for the current product roadmap.
 - [Runtime Conformance Fixture Layout](docs/design/runtime-conformance-fixtures.md)
 - [Static Backend Selection](docs/design/static-backend-selection.md)
 - [simdjson On-Demand Decode Spike](docs/design/simdjson-ondemand-decode-spike.md)
+- [simdjson Generated Decode Vertical Slice](docs/design/simdjson-generated-decode-vertical-slice.md)
 - [Named C++ Test Infrastructure](docs/design/cpp-test-infrastructure.md)
 - [ull-md-engine Dogfood Report](docs/dogfood/ull-md-engine-v0.3.0.md)
 - [Early-Adopter Outreach](docs/community/early-adopter-outreach.md)

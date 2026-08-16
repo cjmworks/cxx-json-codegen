@@ -61,12 +61,11 @@ namespace cjm::simdjson::detail {
 
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
-    ::BoolValues& value,
+    ::OptionalIntegerValues& value,
     DecodeError& error) {
     ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
 
     // 1. Track required fields for this object.
-    bool has_enabled = false;
 
     // 2. Visit each JSON field once.
     for (auto field : object) {
@@ -78,27 +77,26 @@ inline bool decode_object(
             return false;
         }
 
-        if (key == "enabled") {
-            runtime_error = field.value().get_bool().get(value.enabled);
+        if (key == "maybe_count") {
+            value.maybe_count = std::nullopt;
+            if (field.value().is_null()) {
+                continue;
+            }
+            std::int64_t decoded_maybe_count = 0;
+            runtime_error = field.value().get_int64().get(decoded_maybe_count);
             if (runtime_error) {
-                error.code = DecodeErrorCode::expected_bool;
+                error.code = DecodeErrorCode::expected_integer;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "enabled", 0});
+                    {DecodePathSegmentKind::field, "maybe_count", 0});
                 error.runtime_error = runtime_error;
                 return false;
             }
-            has_enabled = true;
+            value.maybe_count = decoded_maybe_count;
             continue;
         }
     }
 
     // 3. Verify that every required field was present.
-    if (!has_enabled) {
-        error.code = DecodeErrorCode::missing_required_field;
-        error.path.push_back(
-            {DecodePathSegmentKind::field, "enabled", 0});
-        return false;
-    }
 
     // 4. Report that this object was decoded successfully.
     return true;
@@ -109,8 +107,8 @@ inline bool decode_object(
 namespace cjm::simdjson {
 
 template <>
-inline std::optional<::BoolValues>
-from_json<::BoolValues>(
+inline std::optional<::OptionalIntegerValues>
+from_json<::OptionalIntegerValues>(
     std::string_view input,
     DecodeError& error) {
     // 1. Prepare the padded input owned for this decode.
@@ -137,7 +135,7 @@ from_json<::BoolValues>(
         return std::nullopt;
     }
     // 3. Decode the root object into a new value.
-    ::BoolValues value{};
+    ::OptionalIntegerValues value{};
     if (!detail::decode_object(object, value, error)) {
         return std::nullopt;
     }

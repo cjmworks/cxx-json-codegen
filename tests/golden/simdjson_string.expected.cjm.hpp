@@ -61,12 +61,12 @@ namespace cjm::simdjson::detail {
 
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
-    ::BoolValues& value,
+    ::StringValues& value,
     DecodeError& error) {
     ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
 
     // 1. Track required fields for this object.
-    bool has_enabled = false;
+    bool has_name = false;
 
     // 2. Visit each JSON field once.
     for (auto field : object) {
@@ -78,25 +78,27 @@ inline bool decode_object(
             return false;
         }
 
-        if (key == "enabled") {
-            runtime_error = field.value().get_bool().get(value.enabled);
+        if (key == "name") {
+            std::string_view decoded_name;
+            runtime_error = field.value().get_string().get(decoded_name);
             if (runtime_error) {
-                error.code = DecodeErrorCode::expected_bool;
+                error.code = DecodeErrorCode::expected_string;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "enabled", 0});
+                    {DecodePathSegmentKind::field, "name", 0});
                 error.runtime_error = runtime_error;
                 return false;
             }
-            has_enabled = true;
+            value.name.assign(decoded_name.begin(), decoded_name.end());
+            has_name = true;
             continue;
         }
     }
 
     // 3. Verify that every required field was present.
-    if (!has_enabled) {
+    if (!has_name) {
         error.code = DecodeErrorCode::missing_required_field;
         error.path.push_back(
-            {DecodePathSegmentKind::field, "enabled", 0});
+            {DecodePathSegmentKind::field, "name", 0});
         return false;
     }
 
@@ -109,8 +111,8 @@ inline bool decode_object(
 namespace cjm::simdjson {
 
 template <>
-inline std::optional<::BoolValues>
-from_json<::BoolValues>(
+inline std::optional<::StringValues>
+from_json<::StringValues>(
     std::string_view input,
     DecodeError& error) {
     // 1. Prepare the padded input owned for this decode.
@@ -137,7 +139,7 @@ from_json<::BoolValues>(
         return std::nullopt;
     }
     // 3. Decode the root object into a new value.
-    ::BoolValues value{};
+    ::StringValues value{};
     if (!detail::decode_object(object, value, error)) {
         return std::nullopt;
     }

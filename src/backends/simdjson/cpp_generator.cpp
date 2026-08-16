@@ -8,15 +8,30 @@
 namespace cjm::generator::simdjson {
 namespace {
 
+// Return whether an optional field has a complete generated decoder.
+bool is_supported_optional_field(const metadata::FieldType& type) {
+    return type.kind == metadata::FieldTypeKind::Optional &&
+           type.arguments.size() == 1 &&
+           type.arguments[0].kind == metadata::FieldTypeKind::SignedInteger &&
+           type.arguments[0].spelling == "std::int64_t" &&
+           type.arguments[0].qualified_name == "std::int64_t";
+}
+
+// Return whether a user-defined field has a complete generated decoder.
+bool is_supported_user_defined_field(const metadata::FieldType& type) {
+    return type.kind == metadata::FieldTypeKind::UserDefined &&
+           (!type.qualified_name.empty() || !type.spelling.empty());
+}
+
 // Return whether a Metadata IR kind has a complete generated decoder.
 bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
     switch (kind) {
     case metadata::FieldTypeKind::Bool:
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
+    case metadata::FieldTypeKind::String:
         return true;
     case metadata::FieldTypeKind::FloatingPoint:
-    case metadata::FieldTypeKind::String:
     case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
@@ -26,6 +41,12 @@ bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
         return false;
     }
     return false;
+}
+
+// Return whether a field must be present in the decoded object.
+bool requires_presence_check(const metadata::FieldModel& field) {
+    return !field.json.ignored &&
+           field.type.kind != metadata::FieldTypeKind::Optional;
 }
 
 // Return the globally qualified C++ name of one generated model.
@@ -60,6 +81,7 @@ void generate_decode_error_model(std::ostringstream& out) {
         << "    trailing_content,\n"
         << "    expected_object,\n"
         << "    expected_bool,\n"
+        << "    expected_string,\n"
         << "    expected_integer,\n"
         << "    expected_unsigned_integer,\n"
         << "    integer_overflow,\n"
@@ -105,6 +127,17 @@ void generate_field_error_path(std::ostringstream& out,
                    "\", 0});");
 }
 
+// Generate one structured field path prepend.
+void generate_prepend_field_error_path(std::ostringstream& out,
+                                       const metadata::FieldModel& field,
+                                       std::size_t indent_level) {
+    write_line(out, indent_level, "error.path.insert(");
+    write_line(out, indent_level + 1, "error.path.begin(),");
+    write_line(out, indent_level + 1,
+               "{DecodePathSegmentKind::field, \"" + field.json.name +
+                   "\", 0});");
+}
+
 // Generate one required bool field decoder.
 void generate_bool_field_decode(std::ostringstream& out,
                                 const metadata::FieldModel& field) {
@@ -116,8 +149,32 @@ void generate_bool_field_decode(std::ostringstream& out,
     write_line(out, 4, "error.code = DecodeErrorCode::expected_bool;");
     generate_field_error_path(out, field, 4);
     write_line(out, 4, "error.runtime_error = runtime_error;");
-    write_line(out, 4, "return std::nullopt;");
+    write_line(out, 4, "return false;");
     write_line(out, 3, "}");
+    write_line(out, 3, "has_" + field.name + " = true;");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
+// Generate one required owned string field decoder.
+void generate_string_field_decode(std::ostringstream& out,
+                                  const metadata::FieldModel& field) {
+    const std::string decoded_name = "decoded_" + field.name;
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    write_line(out, 3, "std::string_view " + decoded_name + ";");
+    write_line(out, 3,
+               "runtime_error = field.value().get_string().get(" +
+                   decoded_name + ");");
+    write_line(out, 3, "if (runtime_error) {");
+    write_line(out, 4, "error.code = DecodeErrorCode::expected_string;");
+    generate_field_error_path(out, field, 4);
+    write_line(out, 4, "error.runtime_error = runtime_error;");
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+    write_line(out, 3,
+               "value." + field.name + ".assign(" + decoded_name +
+                   ".begin(), " + decoded_name + ".end());");
     write_line(out, 3, "has_" + field.name + " = true;");
     write_line(out, 3, "continue;");
     write_line(out, 2, "}");
@@ -147,7 +204,7 @@ void generate_integer_field_decode(std::ostringstream& out,
     write_line(out, 4, "error.code = " + expected_error + ";");
     generate_field_error_path(out, field, 4);
     write_line(out, 4, "error.runtime_error = runtime_error;");
-    write_line(out, 4, "return std::nullopt;");
+    write_line(out, 4, "return false;");
     write_line(out, 3, "}");
     out << "\n";
 
@@ -170,7 +227,7 @@ void generate_integer_field_decode(std::ostringstream& out,
     write_line(out, 3, "if (" + overflow_condition + ") {");
     write_line(out, 4, "error.code = DecodeErrorCode::integer_overflow;");
     generate_field_error_path(out, field, 4);
-    write_line(out, 4, "return std::nullopt;");
+    write_line(out, 4, "return false;");
     write_line(out, 3, "}");
     out << "\n";
 
@@ -182,7 +239,61 @@ void generate_integer_field_decode(std::ostringstream& out,
     write_line(out, 2, "}");
 }
 
-// Generate one supported scalar field decoder.
+// Generate one optional signed 64-bit integer field decoder.
+void generate_optional_integer_field_decode(std::ostringstream& out,
+                                            const metadata::FieldModel& field) {
+    const std::string decoded_name = "decoded_" + field.name;
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    write_line(out, 3, "value." + field.name + " = std::nullopt;");
+    write_line(out, 3, "if (field.value().is_null()) {");
+    write_line(out, 4, "continue;");
+    write_line(out, 3, "}");
+
+    write_line(out, 3, "std::int64_t " + decoded_name + " = 0;");
+    write_line(out, 3,
+               "runtime_error = field.value().get_int64().get(" + decoded_name +
+                   ");");
+    write_line(out, 3, "if (runtime_error) {");
+    write_line(out, 4, "error.code = DecodeErrorCode::expected_integer;");
+    generate_field_error_path(out, field, 4);
+    write_line(out, 4, "error.runtime_error = runtime_error;");
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+
+    write_line(out, 3, "value." + field.name + " = " + decoded_name + ";");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
+// Generate one required nested object field decoder.
+void generate_user_defined_field_decode(std::ostringstream& out,
+                                        const metadata::FieldModel& field) {
+    const std::string decoded_name = "decoded_" + field.name;
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    write_line(out, 3, "::simdjson::ondemand::object " + decoded_name + ";");
+    write_line(out, 3,
+               "runtime_error = field.value().get_object().get(" +
+                   decoded_name + ");");
+    write_line(out, 3, "if (runtime_error) {");
+    write_line(out, 4, "error.code = DecodeErrorCode::expected_object;");
+    generate_field_error_path(out, field, 4);
+    write_line(out, 4, "error.runtime_error = runtime_error;");
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+    write_line(out, 3,
+               "if (!detail::decode_object(" + decoded_name + ", value." +
+                   field.name + ", error)) {");
+    generate_prepend_field_error_path(out, field, 4);
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+    write_line(out, 3, "has_" + field.name + " = true;");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
+// Generate one supported field decoder.
 void generate_field_decode(std::ostringstream& out,
                            const metadata::FieldModel& field) {
     switch (field.type.kind) {
@@ -195,19 +306,94 @@ void generate_field_decode(std::ostringstream& out,
         return;
     case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::String:
+        generate_string_field_decode(out, field);
+        return;
     case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
+        generate_optional_integer_field_decode(out, field);
+        return;
     case metadata::FieldTypeKind::UserDefined:
+        generate_user_defined_field_decode(out, field);
         return;
     }
 }
 
-// Generate the required scalar decoder for one model.
-void generate_decode_function(std::ostringstream& out,
-                              const metadata::TypeModel& type) {
+// Generate the internal object decoder for one model.
+void generate_object_decode_function(std::ostringstream& out,
+                                     const metadata::TypeModel& type) {
+    const auto cpp_type = generated_type_name(type);
+    // 1. Open namespace cjm::simdjson::detail.
+    write_line(out, 0, "namespace cjm::simdjson::detail {");
+    write_line(out, 0, "");
+    write_line(out, 0, "inline bool decode_object(");
+    write_line(out, 1, "::simdjson::ondemand::object& object,");
+    write_line(out, 1, cpp_type + "& value,");
+    write_line(out, 1, "DecodeError& error) {");
+
+    write_line(out, 1,
+               "::simdjson::error_code runtime_error = ::simdjson::SUCCESS;");
+    write_line(out, 0, "");
+
+    write_line(out, 1, "// 1. Track required fields for this object.");
+
+    for (const auto& field : type.fields) {
+        if (requires_presence_check(field)) {
+            out << "    bool has_" << field.name << " = false;\n";
+        }
+    }
+
+    out << "\n"
+        << "    // 2. Visit each JSON field once.\n"
+        << "    for (auto field : object) {\n"
+        << "        std::string_view key;\n"
+        << "        runtime_error = field.unescaped_key().get(key);\n"
+        << "        if (runtime_error) {\n"
+        << "            error.code = DecodeErrorCode::syntax_error;\n"
+        << "            error.runtime_error = runtime_error;\n"
+        << "            return false;\n"
+        << "        }\n"
+        << "\n";
+
+    for (const auto& field : type.fields) {
+        if (field.json.ignored) {
+            continue;
+        }
+        generate_field_decode(out, field);
+    }
+
+    out << "    }\n"
+        << "\n"
+        << "    // 3. Verify that every required field was present.\n";
+
+    for (const auto& field : type.fields) {
+        if (!requires_presence_check(field)) {
+            continue;
+        }
+
+        out << "    if (!has_" << field.name << ") {\n"
+            << "        error.code = "
+            << "DecodeErrorCode::missing_required_field;\n"
+            << "        error.path.push_back(\n"
+            << "            {DecodePathSegmentKind::field, \""
+            << field.json.name << "\", 0});\n"
+            << "        return false;\n"
+            << "    }\n";
+    }
+
+    out << "\n"
+        << "    // 4. Report that this object was decoded successfully.\n"
+        << "    return true;\n"
+        << "}\n"
+        << "\n"
+        << "} // namespace cjm::simdjson::detail\n";
+}
+
+// Generate the public root decoder for one model.
+void generate_root_decode_function(std::ostringstream& out,
+                                   const metadata::TypeModel& type) {
     const auto cpp_type = generated_type_name(type);
 
     out << "namespace cjm::simdjson {\n"
@@ -241,63 +427,21 @@ void generate_decode_function(std::ostringstream& out,
         << "        error.runtime_error = runtime_error;\n"
         << "        return std::nullopt;\n"
         << "    }\n"
+
+        << "    // 3. Decode the root object into a new value.\n"
+        << "    " << cpp_type << " value{};\n"
+        << "    if (!detail::decode_object(object, value, error)) {\n"
+        << "        return std::nullopt;\n"
+        << "    }\n"
         << "\n"
-        << "    // 3. Build a new object and track its required fields.\n"
-        << "    " << cpp_type << " value{};\n";
-
-    for (const auto& field : type.fields) {
-        if (!field.json.ignored) {
-            out << "    bool has_" << field.name << " = false;\n";
-        }
-    }
-
-    out << "\n"
-        << "    // 4. Visit each JSON field once.\n"
-        << "    for (auto field : object) {\n"
-        << "        std::string_view key;\n"
-        << "        runtime_error = field.unescaped_key().get(key);\n"
-        << "        if (runtime_error) {\n"
-        << "            error.code = DecodeErrorCode::syntax_error;\n"
-        << "            error.runtime_error = runtime_error;\n"
-        << "            return std::nullopt;\n"
-        << "        }\n"
-        << "\n";
-
-    for (const auto& field : type.fields) {
-        if (field.json.ignored) {
-            continue;
-        }
-        generate_field_decode(out, field);
-    }
-
-    out << "    }\n"
-        << "\n"
-        << "    // 5. Reject non-whitespace content after the root object.\n"
+        << "    // 4. Reject non-whitespace content after the root object.\n"
         << "    if (!document.at_end()) {\n"
         << "        error.code = DecodeErrorCode::trailing_content;\n"
         << "        error.runtime_error = ::simdjson::TRAILING_CONTENT;\n"
         << "        return std::nullopt;\n"
         << "    }\n"
         << "\n"
-        << "    // 6. Verify that every required field was present.\n";
-
-    for (const auto& field : type.fields) {
-        if (field.json.ignored) {
-            continue;
-        }
-
-        out << "    if (!has_" << field.name << ") {\n"
-            << "        error.code = "
-               "DecodeErrorCode::missing_required_field;\n"
-            << "        error.path.push_back(\n"
-            << "            {DecodePathSegmentKind::field, \""
-            << field.json.name << "\", 0});\n"
-            << "        return std::nullopt;\n"
-            << "    }\n";
-    }
-
-    out << "\n"
-        << "    // 7. Return the completely decoded object.\n"
+        << "    // 5. Return the completely decoded object.\n"
         << "    return value;\n"
         << "}\n"
         << "\n"
@@ -311,7 +455,9 @@ std::string validate_project(const metadata::ProjectModel& project) {
             if (field.json.ignored) {
                 continue;
             }
-            if (is_supported_scalar_kind(field.type.kind)) {
+            if (is_supported_scalar_kind(field.type.kind) ||
+                is_supported_optional_field(field.type) ||
+                is_supported_user_defined_field(field.type)) {
                 continue;
             }
 
@@ -355,9 +501,10 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
 
     for (const auto& type : project.types) {
         header << "\n";
-        generate_decode_function(header, type);
+        generate_object_decode_function(header, type);
+        header << "\n";
+        generate_root_decode_function(header, type);
     }
-
     return GenerationResult{true, header.str(), {}};
 }
 
