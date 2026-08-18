@@ -299,15 +299,24 @@ encode, and makes no compile-time or runtime performance claim.
 
 ## Work Package D - simdjson Decode MVP
 
-Expand only after the generated vertical slice is understood.
+Status: superseded by the parity-first experimental backend MVP epic.
 
-Candidate scope:
+The generated vertical slice is now understood well enough to target an opt-in
+experimental backend rather than another narrow decode-only slice. Decode work
+continues as part of the simdjson experimental backend MVP contract.
+
+The decode target is practical mapping parity with the current nlohmann backend,
+subject only to documented parity blockers that fail closed during generation.
+
+Required decode areas include:
 
 - enum string decode
 - optional fields
 - vectors
 - nested generated objects
-- fixed arrays if the consumption model is clear
+- fixed arrays
+- string-keyed maps
+- recursive generated models unless an explicit blocker is accepted
 - source-independent JSON path or field context
 - partial-output policy
 
@@ -316,9 +325,16 @@ complete JSON backend unless clearly labeled experimental and decode-only.
 
 ## Work Package E - simdjson Builder / Encode Spike
 
-Keep simdjson decode and encode work contiguous.
+Status: folded into the parity-first experimental backend MVP epic.
 
-Prove:
+The experimental backend cannot be considered release-ready with decode alone.
+Encode strategy is therefore designed and implemented as part of the same
+backend MVP.
+
+The encode target is practical mapping parity with the current nlohmann backend,
+subject only to documented parity blockers that fail closed during generation.
+
+The encode strategy must prove:
 
 - deterministic object field order
 - string escaping through runtime primitives
@@ -330,8 +346,13 @@ Prove:
 
 ## Work Package F - simdjson Experimental Backend
 
-Promote only after decode and encode have both passed the limited conformance
-subset.
+Status: active as epic #203.
+
+The experimental backend MVP is defined in
+[simdjson Experimental Backend MVP](simdjson-experimental-backend-mvp.md).
+
+Promote only after decode and encode have both passed the selected parity
+conformance subset.
 
 Expected evidence:
 

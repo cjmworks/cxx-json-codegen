@@ -889,9 +889,8 @@ Completed runtime backend work packages:
 
 Remaining runtime backend work packages:
 
-- simdjson decode MVP over a limited conformance subset
-- simdjson builder / encode spike
-- simdjson experimental backend with decode, encode, conformance, and docs
+- simdjson experimental backend MVP with nlohmann practical mapping parity,
+  decode, encode, conformance, round-trip tests, and docs
 - Glaze metadata adapter evaluation after simdjson context is preserved
 - separate Glaze generated custom codec evaluation only if its documented API
   and evidence justify the maintenance cost
