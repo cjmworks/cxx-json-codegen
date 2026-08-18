@@ -5,11 +5,35 @@
 #include <cstddef>
 
 #include "backends/nlohmann/cpp_generator.hpp"
+#include "backends/simdjson/cpp_generator.hpp"
 #include "backends/schema/schema_generator.hpp"
 #include "frontends/cxx/parser/parser.hpp"
 #include "frontends/cxx/semantic/analysis.hpp"
 
 namespace {
+
+enum class JsonBackend { Nlohmann, Simdjson };
+
+struct GenerateOptions {
+    std::vector<std::string> inputs;
+    std::string output;
+    JsonBackend backend = JsonBackend::Nlohmann;
+};
+
+bool parse_json_backend(std::string_view value, JsonBackend& backend) {
+    if (value == "nlohmann") {
+        backend = JsonBackend::Nlohmann;
+        return true;
+    }
+    if (value == "simdjson") {
+        backend = JsonBackend::Simdjson;
+        return true;
+    }
+
+    std::cerr << "cjm: unknown JSON backend: " << value << "\n"
+              << "cjm: supported JSON backends: nlohmann, simdjson\n";
+    return false;
+}
 
 constexpr int kExitSuccess = 0;
 constexpr int kExitFailure = 1;
@@ -26,15 +50,11 @@ void print_help(std::ostream& out) {
            "<file>\n";
 }
 
-struct GenerateOptions {
-    std::vector<std::string> inputs;
-    std::string output;
-};
-
 // Return true when an argument starts a CLI option such as --input or --output.
 bool is_option_arg(const std::string& arg) { return arg.rfind("--", 0) == 0; }
 
-bool parse_generate_options(int argc, char** argv, GenerateOptions& options) {
+bool parse_generate_options(int argc, char** argv, bool allow_backend_selection,
+                            GenerateOptions& options) {
     for (int i = 2; i < argc; ++i) {
         const std::string arg = argv[i];
 
@@ -65,6 +85,20 @@ bool parse_generate_options(int argc, char** argv, GenerateOptions& options) {
             options.output = argv[++i];
             continue;
         }
+        if (arg == "--backend") {
+            if (!allow_backend_selection) {
+                std::cerr << "cjm: --backend is only valid for generate\n";
+                return false;
+            }
+            if (i + 1 >= argc) {
+                std::cerr << "cjm: --backend requires a value\n";
+                return false;
+            }
+            if (!parse_json_backend(std::string_view(argv[++i]),
+                                    options.backend)) {
+                return false;
+            }
+        }
         std::cerr << "cjm: unknown generate option: " << arg << "\n";
         return false;
     }
@@ -78,6 +112,25 @@ bool parse_generate_options(int argc, char** argv, GenerateOptions& options) {
         return false;
     }
     return true;
+}
+
+bool generate_runtime_header(const GenerateOptions& options,
+                             const cjm::metadata::ProjectModel& project,
+                             std::string& generated) {
+    switch (options.backend) {
+    case JsonBackend::Nlohmann:
+        generated = cjm::generator::generate_header(project);
+        return true;
+    case JsonBackend::Simdjson:
+        auto result = cjm::generator::simdjson::generate_header(project);
+        if (!result.success) {
+            std::cerr << "cjm: simdjson backend: " << result.error << "\n";
+            return false;
+        }
+        generated = result.header;
+        return true;
+    }
+    return false;
 }
 
 std::string join_inputs(const std::vector<std::string>& inputs) {
@@ -137,7 +190,10 @@ int run_generate_command(const GenerateOptions& options) {
         return kExitFailure;
     }
 
-    const auto generated = cjm::generator::generate_header(project);
+    std::string generated;
+    if (!generate_runtime_header(options, project, generated)) {
+        return kExitFailure;
+    }
 
     if (!write_output_file(options.output, generated)) {
         return kExitFailure;
@@ -181,7 +237,7 @@ int main(int argc, char** argv) {
 
     if (command == "generate") {
         GenerateOptions options;
-        if (!parse_generate_options(argc, argv, options)) {
+        if (!parse_generate_options(argc, argv, true, options)) {
             std::cerr << "Run 'cjm --help' for usage.\n";
             return kExitUsageError;
         }
@@ -189,7 +245,7 @@ int main(int argc, char** argv) {
     }
     if (command == "generate-schema") {
         GenerateOptions options;
-        if (!parse_generate_options(argc, argv, options)) {
+        if (!parse_generate_options(argc, argv, false, options)) {
             std::cerr << "Run 'cjm --help' for usage.\n";
             return kExitUsageError;
         }
