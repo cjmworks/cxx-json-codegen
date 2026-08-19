@@ -98,6 +98,7 @@ bool parse_generate_options(int argc, char** argv, bool allow_backend_selection,
                                     options.backend)) {
                 return false;
             }
+            continue;
         }
         std::cerr << "cjm: unknown generate option: " << arg << "\n";
         return false;
