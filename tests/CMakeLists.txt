@@ -172,6 +172,52 @@ set_tests_properties(
     PASS_REGULAR_EXPRESSION "cjm: generated"
 )
 
+add_test(NAME cjm_cli_generate_explicit_nlohmann
+  COMMAND cjm generate
+  --backend nlohmann
+  --input ${PROJECT_SOURCE_DIR}/examples/basic/user.hpp
+  --output ${PROJECT_BINARY_DIR}/user.nlohmann.cjm.hpp
+)
+set_tests_properties(
+  cjm_cli_generate_explicit_nlohmann
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "cjm: generated"
+)
+
+add_test(NAME cjm_cli_generate_explicit_nlohmann_golden
+  COMMAND ${CMAKE_COMMAND} -E compare_files
+          ${PROJECT_BINARY_DIR}/user.nlohmann.cjm.hpp
+          ${PROJECT_SOURCE_DIR}/tests/golden/basic_pipeline.expected.cjm.hpp
+)
+set_tests_properties(
+  cjm_cli_generate_explicit_nlohmann_golden
+  PROPERTIES
+    DEPENDS cjm_cli_generate_explicit_nlohmann
+)
+
+add_test(NAME cjm_cli_generate_explicit_simdjson
+  COMMAND cjm generate
+  --backend simdjson
+  --input ${PROJECT_SOURCE_DIR}/examples/basic/user.hpp
+  --output ${PROJECT_BINARY_DIR}/user.simdjson.cjm.hpp
+)
+set_tests_properties(
+  cjm_cli_generate_explicit_simdjson
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "cjm: generated"
+)
+
+add_test(NAME cjm_cli_generate_explicit_simdjson_golden
+  COMMAND ${CMAKE_COMMAND} -E compare_files
+          ${PROJECT_BINARY_DIR}/user.simdjson.cjm.hpp
+          ${PROJECT_SOURCE_DIR}/tests/golden/basic_simdjson_cli.expected.cjm.hpp
+)
+set_tests_properties(
+  cjm_cli_generate_explicit_simdjson_golden
+  PROPERTIES
+    DEPENDS cjm_cli_generate_explicit_simdjson
+)
+
 add_test(NAME cjm_cli_unknown_command
   COMMAND cjm unknown
 )
@@ -179,6 +225,27 @@ set_tests_properties(
   cjm_cli_unknown_command
   PROPERTIES
     WILL_FAIL TRUE
+)
+
+add_test(NAME cjm_cli_generate_unknown_backend
+  COMMAND ${CMAKE_COMMAND}
+  -D "CJM_EXPECT_FAILURE_COMMAND=$<TARGET_FILE:cjm>;generate;--backend;nope;--input;${PROJECT_SOURCE_DIR}/examples/basic/user.hpp;--output;${PROJECT_BINARY_DIR}/unknown-backend.cjm.hpp"
+  -D "CJM_EXPECT_FAILURE_OUTPUT=unknown JSON backend"
+  -P ${PROJECT_SOURCE_DIR}/tests/cmake/ExpectCommandFailure.cmake
+)
+
+add_test(NAME cjm_cli_generate_backend_missing_value
+  COMMAND ${CMAKE_COMMAND}
+  -D "CJM_EXPECT_FAILURE_COMMAND=$<TARGET_FILE:cjm>;generate;--input;${PROJECT_SOURCE_DIR}/examples/basic/user.hpp;--output;${PROJECT_BINARY_DIR}/missing-backend-value.cjm.hpp;--backend"
+  -D "CJM_EXPECT_FAILURE_OUTPUT=--backend requires a value"
+  -P ${PROJECT_SOURCE_DIR}/tests/cmake/ExpectCommandFailure.cmake
+)
+
+add_test(NAME cjm_cli_generate_schema_rejects_backend
+  COMMAND ${CMAKE_COMMAND}
+  -D "CJM_EXPECT_FAILURE_COMMAND=$<TARGET_FILE:cjm>;generate-schema;--backend;simdjson;--input;${PROJECT_SOURCE_DIR}/examples/basic/user.hpp;--output;${PROJECT_BINARY_DIR}/schema-backend.schema.json"
+  -D "CJM_EXPECT_FAILURE_OUTPUT=--backend is only valid for generate"
+  -P ${PROJECT_SOURCE_DIR}/tests/cmake/ExpectCommandFailure.cmake
 )
 
 add_test(NAME cjm_cli_generate_missing_args
