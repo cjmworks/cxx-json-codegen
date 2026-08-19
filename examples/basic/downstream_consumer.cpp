@@ -1,5 +1,5 @@
 #include "user.hpp"
-#include "user.cjm.hpp"
+#include "cjm/nlohmann/user.cjm.hpp"
 
 #include <nlohmann/json.hpp>
 

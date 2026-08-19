@@ -185,27 +185,41 @@ This means:
 
 # Generated Artifact Identity
 
-Current single-backend output should remain stable for the default workflow:
-
-```text
-<build-dir>/generated/cjm/user.cjm.hpp
-```
-
-When a build requests multiple runtime backend outputs for the same input, CJM
-must disambiguate generated files deterministically. The preferred CMake layout
-is a backend directory under the generated C++ output root:
+Runtime generated headers must include the selected JSON backend in their
+artifact identity. The CMake layout is a backend directory under the generated
+C++ output root:
 
 ```text
 <build-dir>/generated/cjm/nlohmann/user.cjm.hpp
 <build-dir>/generated/cjm/simdjson/user.cjm.hpp
 ```
 
-For direct CLI use, users control the output path. Recommended side-by-side
-filenames should include the backend name:
+CMake should add the generated output root, not the backend directory itself, to
+the consuming target include path:
 
 ```text
-user.nlohmann.cjm.hpp
-user.simdjson.cjm.hpp
+<build-dir>/generated
+```
+
+Consumers should include runtime generated headers through the same canonical
+path regardless of whether the file was produced by `cjm_generate(...)` or by a
+manual CLI command:
+
+```cpp
+#include "cjm/nlohmann/user.cjm.hpp"
+#include "cjm/simdjson/user.cjm.hpp"
+```
+
+This keeps the C++ include spelling explicit about both the CJM-generated domain
+and the selected runtime backend. `generated` is a physical build output root,
+not part of the user-facing include identity.
+
+For direct CLI use, users control the output path. The recommended layout is to
+write outputs under an include root using the same canonical path:
+
+```text
+<output-root>/cjm/nlohmann/user.cjm.hpp
+<output-root>/cjm/simdjson/user.cjm.hpp
 ```
 
 Artifact backend outputs keep their existing artifact-specific conventions:

@@ -435,12 +435,24 @@ targets that select that backend. Selecting an experimental backend must not
 raise the language standard or dependency set for default nlohmann users.
 
 When multiple runtime backend outputs are requested for the same input, the
-generated file layout must disambiguate by backend name, such as:
+generated file layout must disambiguate by backend name:
 
 ```text
 <build-dir>/generated/cjm/nlohmann/user.cjm.hpp
 <build-dir>/generated/cjm/simdjson/user.cjm.hpp
 ```
+
+CMake should add `<build-dir>/generated` to the consuming target include path.
+Consumers should include runtime generated headers through the canonical
+backend-qualified path:
+
+```cpp
+#include "cjm/nlohmann/user.cjm.hpp"
+#include "cjm/simdjson/user.cjm.hpp"
+```
+
+The `generated` directory is a build output root. It should not appear in the
+source-level include spelling.
 
 See [Static Backend Selection](static-backend-selection.md) for the full design
 contract.

@@ -101,6 +101,25 @@ The exact implementation belongs to the CMake child issue. The contract is that
 simdjson is not found, fetched, configured, linked, exported, or required for a
 default nlohmann-only consumer.
 
+Runtime generated headers use the static backend-selection artifact identity:
+
+```text
+<build-dir>/generated/cjm/nlohmann/model.cjm.hpp
+<build-dir>/generated/cjm/simdjson/model.cjm.hpp
+```
+
+The consuming target include root is `<build-dir>/generated`, and source files
+include generated runtime headers through the backend-qualified CJM path:
+
+```cpp
+#include "cjm/nlohmann/model.cjm.hpp"
+#include "cjm/simdjson/model.cjm.hpp"
+```
+
+The same include spelling applies whether generation was driven by
+`cjm_generate(...)` or by a manual CLI command that writes to the recommended
+output layout.
+
 ## Capability Matrix
 
 The MVP target is parity with the current nlohmann practical mapping surface.

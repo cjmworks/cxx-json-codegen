@@ -272,7 +272,7 @@ add_test(
 add_test(
   NAME cjm_basic_example_generated_header
   COMMAND ${CMAKE_COMMAND} -E compare_files
-          ${PROJECT_BINARY_DIR}/examples/basic/generated/cjm/user.cjm.hpp
+          ${PROJECT_BINARY_DIR}/examples/basic/generated/cjm/nlohmann/user.cjm.hpp
           ${PROJECT_SOURCE_DIR}/tests/golden/basic_pipeline.expected.cjm.hpp
 )
 # parser tests below...
@@ -420,6 +420,45 @@ add_test(
   COMMAND ${CMAKE_COMMAND} -E compare_files
           ${PROJECT_BINARY_DIR}/examples/basic/generated/schemas/user.schema.json
           ${PROJECT_SOURCE_DIR}/tests/golden/basic_user.expected.schema.json
+)
+
+add_test(
+  NAME cjm_cmake_simdjson_backend_configure
+  COMMAND ${CMAKE_COMMAND}
+  -S ${PROJECT_SOURCE_DIR}/tests/fixtures/cmake_simdjson_consumer
+  -B ${PROJECT_BINARY_DIR}/cmake_simdjson_consumer
+  -D CJM_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+)
+
+add_test(NAME cjm_cmake_simdjson_backend_build
+  COMMAND ${CMAKE_COMMAND}
+  --build ${PROJECT_BINARY_DIR}/cmake_simdjson_consumer
+  --target cjm_cmake_simdjson_consumer
+)
+set_tests_properties(
+  cjm_cmake_simdjson_backend_build
+  PROPERTIES
+    DEPENDS cjm_cmake_simdjson_backend_configure
+)
+
+add_test(NAME cjm_cmake_simdjson_backend_run
+  COMMAND ${PROJECT_BINARY_DIR}/cmake_simdjson_consumer/cjm_cmake_simdjson_consumer
+)
+set_tests_properties(
+  cjm_cmake_simdjson_backend_run
+  PROPERTIES
+    DEPENDS cjm_cmake_simdjson_backend_build
+)
+
+add_test(NAME cjm_cmake_simdjson_backend_golden
+  COMMAND ${CMAKE_COMMAND} -E compare_files
+          ${PROJECT_BINARY_DIR}/cmake_simdjson_consumer/generated/cjm/simdjson/user.cjm.hpp
+          ${PROJECT_SOURCE_DIR}/tests/golden/basic_simdjson_cli.expected.cjm.hpp
+)
+set_tests_properties(
+  cjm_cmake_simdjson_backend_golden
+  PROPERTIES
+    DEPENDS cjm_cmake_simdjson_backend_build
 )
 
 add_executable(cjm_metadata_named_tests ${PROJECT_SOURCE_DIR}/tests/core/ir/model_named_tests.cpp)

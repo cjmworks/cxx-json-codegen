@@ -45,7 +45,7 @@ void print_help(std::ostream& out) {
         << "Usage:\n"
         << "    cjm --help\n"
         << "    cjm help\n"
-        << "    cjm generate [--backend <nlohmann|simdjson] --input <header> "
+        << "    cjm generate [--backend <nlohmann|simdjson>] --input <header> "
            "[<header>...] --output <file>\n"
         << "    cjm generate-schema --input <header> [<header>...] --output "
            "<file>\n";
