@@ -38,6 +38,36 @@ FieldModel make_required_field(const std::string& name, FieldTypeKind kind,
     };
 }
 
+ProjectModel make_single_field_project(const std::string& model_name,
+                                       const FieldModel& field) {
+    TypeModel type;
+    type.name = model_name;
+    type.qualified_name = model_name;
+    type.fields = {field};
+
+    ProjectModel project;
+    project.types = {type};
+    return project;
+}
+
+void expect_unsupported_capability(
+    const cjm::generator::simdjson::GenerationResult& result,
+    const std::string& model_name, const std::string& field_name,
+    const std::string& json_name, const std::string& type_name,
+    const std::string& reason) {
+    assert(!result.success);
+    assert(result.header.empty());
+    assert(result.error.find("unsupported capability") != std::string::npos);
+    assert(result.error.find("model '" + model_name + "'") !=
+           std::string::npos);
+    assert(result.error.find("field '" + field_name + "'") !=
+           std::string::npos);
+    assert(result.error.find("json field '" + json_name + "'") !=
+           std::string::npos);
+    assert(result.error.find(type_name) != std::string::npos);
+    assert(result.error.find(reason) != std::string::npos);
+}
+
 ProjectModel make_bool_project() {
     TypeModel type;
     type.name = "BoolValues";
@@ -345,40 +375,70 @@ int main() {
         assert(!vector_result.success);
         assert(vector_result.header.empty());
 
-        assert(vector_result.error.find("unsupported capability") !=
-               std::string : npos);
-        assert(vector_result.error.find("model 'VectorValues'") !=
-               std::string::npos);
-
-        assert(vector_result.error.find("tags") != std::string::npos);
-        assert(vector_result.error.find("json field 'tags'") !=
-               std::string::npos);
-        assert(vector_result.error.find("std::vector<std::string>") !=
-               std::string::npos);
-        assert(vector_result.error.find("vector decode is not implemented") !=
-               std::string::npos);
+        expect_unsupported_capability(vector_result, "VectorValues", "tags",
+                                      "tags", "std::vector<std::string>",
+                                      "vector decode is not implemented");
         assert(vector_result.error.find("std::optional<std::int64_t>") !=
                std::string::npos);
     }
     {
         const auto result = cjm::generator::simdjson::generate_header(
             make_optional_string_project());
-        assert(!result.success);
-        assert(result.header.empty());
-        assert(result.error.find("unsupported capability") !=
-               std::string::npos);
-        assert(result.error.find("model 'OptionalStringValues'") !=
-               std::string::npos);
-        assert(result.error.find("field 'maybe_name'") != std::string::npos);
-        assert(result.error.find("json field 'maybe_name'") !=
-               std::string::npos);
-        assert(result.error.find("std::optional<std::string>") !=
-               std::string::npos);
-        assert(result.error.find("optional decode is only implemented for "
-                                 "std::optional<std::int64_t>") !=
-               std::string::npos);
+        expect_unsupported_capability(result, "OptionalStringValues",
+                                      "maybe_name", "maybe_name",
+                                      "std::optional<std::string>",
+                                      "optional decode is only implemented for "
+                                      "std::optional<std::int64_t>");
     }
+    {
+        const auto result =
+            cjm::generator::simdjson::generate_header(make_single_field_project(
+                "FloatingPointValues",
+                make_required_field("ratio", FieldTypeKind::FloatingPoint,
+                                    "double")));
+        expect_unsupported_capability(
+            result, "FloatingPointValues", "ratio", "ratio", "double",
+            "floating-point decode is not implemented");
+    }
+    {
+        const auto result =
+            cjm::generator::simdjson::generate_header(make_single_field_project(
+                "EnumValues",
+                make_required_field("status", FieldTypeKind::Enum, "Status")));
+        expect_unsupported_capability(result, "EnumValues", "status", "status",
+                                      "Status",
+                                      "enum string decode is not implemented");
+    }
+    {
+        auto field = make_required_field("samples", FieldTypeKind::Array,
+                                         "std::array<int, 4>");
+        field.type.qualified_name = "std::array";
+        field.type.arguments = {
+            FieldType{FieldTypeKind::SignedInteger, "int", "int"},
+        };
+        field.type.array_extent = 4;
 
+        const auto result = cjm::generator::simdjson::generate_header(
+            make_single_field_project("ArrayValues", field));
+        expect_unsupported_capability(result, "ArrayValues", "samples",
+                                      "samples", "std::array<int, 4>",
+                                      "fixed array decode is not implemented");
+    }
+    {
+        auto field = make_required_field("counts", FieldTypeKind::Map,
+                                         "std::map<std::string, int>");
+        field.type.qualified_name = "std::map";
+        field.type.arguments = {
+            FieldType{FieldTypeKind::String, "std::string", "std::string"},
+            FieldType{FieldTypeKind::SignedInteger, "int", "int"},
+        };
+
+        const auto result = cjm::generator::simdjson::generate_header(
+            make_single_field_project("MapValues", field));
+        expect_unsupported_capability(result, "MapValues", "counts", "counts",
+                                      "std::map<std::string, int>",
+                                      "map decode is not implemented");
+    }
     {
         const auto string_result =
             cjm::generator::simdjson::generate_header(make_string_project());
