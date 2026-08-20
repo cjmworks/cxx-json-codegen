@@ -1,12 +1,54 @@
 #include "backends/simdjson/cpp_generator.hpp"
 
 #include <cstddef>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
 
 namespace cjm::generator::simdjson {
 namespace {
+
+struct UnsupportedCapability {
+    std::string model_name;
+    std::string field_name;
+    std::string json_name;
+    std::string type_name;
+    std::string reason;
+};
+
+// Return the display name for a Metadata IR type.
+std::string metadata_type_name(const metadata::FieldType& type) {
+    if (!type.spelling.empty()) {
+        return type.spelling;
+    }
+    if (!type.qualified_name.empty()) {
+        return type.qualified_name;
+    }
+    return "<unknown>";
+}
+
+// Return the display name for one Metadata IR model.
+std::string generated_model_name(const metadata::TypeModel& type) {
+    if (!type.qualified_name.empty()) {
+        return type.qualified_name;
+    }
+    return type.name;
+}
+
+// Format one unsupported backend capability diagnostic.
+std::string
+format_unsupported_capability(const UnsupportedCapability& unsupported) {
+    std::ostringstream error;
+    error << "simdjson backend unsupported capability: model '"
+          << unsupported.model_name << "', field '" << unsupported.field_name
+          << "', json field '" << unsupported.json_name << "', C++ type '"
+          << unsupported.type_name << "': " << unsupported.reason
+          << ". Supported simdjson decode shapes currently include bool, "
+          << "string, signed integers, unsigned integers, "
+             "std::optional<std::int64_t>, and generated nested models.";
+    return error.str();
+}
 
 // Return whether an optional field has a complete generated decoder.
 bool is_supported_optional_field(const metadata::FieldType& type) {
@@ -41,6 +83,57 @@ bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
         return false;
     }
     return false;
+}
+
+// Return the backend capability failure for one field, when supported.
+std::optional<UnsupportedCapability>
+unsupported_capability_for_field(const metadata::TypeModel& type,
+                                 const metadata::FieldModel& field) {
+    if (field.json.ignored) {
+        return std::nullopt;
+    }
+
+    if (is_supported_scalar_kind(field.type.kind) ||
+        is_supported_optional_field(field.type) ||
+        is_supported_user_defined_field(field.type)) {
+        return std::nullopt;
+    }
+
+    std::string reason;
+    switch (field.type.kind) {
+    case metadata::FieldTypeKind::FloatingPoint:
+        reason = "floating-point decode is not implemented";
+        break;
+    case metadata::FieldTypeKind::Enum:
+        reason = "enum string decode is not implemented";
+        break;
+    case metadata::FieldTypeKind::Array:
+        reason = "fixed array decode is not implemented";
+        break;
+    case metadata::FieldTypeKind::Vector:
+        reason = "vector decode is not implemented";
+        break;
+    case metadata::FieldTypeKind::Map:
+        reason = "map decode is not implemented";
+        break;
+    case metadata::FieldTypeKind::Optional:
+        reason = "optional decode is only implemented for "
+                 "std::optional<std::int64_t>";
+        break;
+    case metadata::FieldTypeKind::UserDefined:
+        reason = "nested model decode requires a resolved user-defined type";
+        break;
+    case metadata::FieldTypeKind::Bool:
+    case metadata::FieldTypeKind::SignedInteger:
+    case metadata::FieldTypeKind::UnsignedInteger:
+    case metadata::FieldTypeKind::String:
+        return std::nullopt;
+    }
+
+    return UnsupportedCapability{
+        generated_model_name(type),     field.name, field.json.name,
+        metadata_type_name(field.type), reason,
+    };
 }
 
 // Return whether a field must be present in the decoded object.
@@ -452,21 +545,11 @@ void generate_root_decode_function(std::ostringstream& out,
 std::string validate_project(const metadata::ProjectModel& project) {
     for (const auto& type : project.types) {
         for (const auto& field : type.fields) {
-            if (field.json.ignored) {
-                continue;
+            const auto unsupported =
+                unsupported_capability_for_field(type, field);
+            if (unsupported.has_value()) {
+                return format_unsupported_capability(*unsupported);
             }
-            if (is_supported_scalar_kind(field.type.kind) ||
-                is_supported_optional_field(field.type) ||
-                is_supported_user_defined_field(field.type)) {
-                continue;
-            }
-
-            const auto& type_name = field.type.spelling.empty()
-                                        ? field.type.qualified_name
-                                        : field.type.spelling;
-
-            return "simdjson backend does not support field '" + field.name +
-                   "' of type " + type_name;
         }
     }
     return {};

@@ -95,6 +95,39 @@ ProjectModel make_vector_project() {
     return project;
 }
 
+// Build one model containing an optional type outside the current simdjson
+// slice.
+ProjectModel make_optional_string_project() {
+    FieldType inner{
+        FieldTypeKind::String,
+        "std::string",
+        "std::string",
+    };
+
+    FieldType optional_type{
+        FieldTypeKind::Optional,
+        "std::optional<std::string>",
+        "std::optional",
+        {inner},
+    };
+
+    TypeModel type;
+    type.name = "OptionalStringValues";
+    type.qualified_name = "OptionalStringValues";
+    type.fields = {
+        FieldModel{
+            "maybe_name",
+            optional_type,
+            JsonFieldMetadata{"maybe_name", false, false},
+            SourceLocation{"tests/fixtures/optional_string_values.hpp", 1, 1},
+        },
+    };
+
+    ProjectModel project;
+    project.types = {type};
+    return project;
+}
+
 // Build one model containing a required owned string field.
 ProjectModel make_string_project() {
     TypeModel type;
@@ -163,8 +196,7 @@ ProjectModel make_nested_project() {
     user.name = "NestedUser";
     user.qualified_name = "NestedUser";
     user.fields = {
-        make_required_field("id", FieldTypeKind::SignedInteger,
-                            "std::int64_t"),
+        make_required_field("id", FieldTypeKind::SignedInteger, "std::int64_t"),
         FieldModel{
             "address",
             address_type,
@@ -214,8 +246,7 @@ ProjectModel make_vertical_slice_project() {
     user.name = "SliceUser";
     user.qualified_name = "SliceUser";
     user.fields = {
-        make_required_field("id", FieldTypeKind::SignedInteger,
-                            "std::int64_t"),
+        make_required_field("id", FieldTypeKind::SignedInteger, "std::int64_t"),
         make_required_field("name", FieldTypeKind::String, "std::string"),
         FieldModel{
             "maybe_count",
@@ -313,10 +344,41 @@ int main() {
             cjm::generator::simdjson::generate_header(make_vector_project());
         assert(!vector_result.success);
         assert(vector_result.header.empty());
+
+        assert(vector_result.error.find("unsupported capability") !=
+               std::string : npos);
+        assert(vector_result.error.find("model 'VectorValues'") !=
+               std::string::npos);
+
         assert(vector_result.error.find("tags") != std::string::npos);
+        assert(vector_result.error.find("json field 'tags'") !=
+               std::string::npos);
         assert(vector_result.error.find("std::vector<std::string>") !=
                std::string::npos);
+        assert(vector_result.error.find("vector decode is not implemented") !=
+               std::string::npos);
+        assert(vector_result.error.find("std::optional<std::int64_t>") !=
+               std::string::npos);
     }
+    {
+        const auto result = cjm::generator::simdjson::generate_header(
+            make_optional_string_project());
+        assert(!result.success);
+        assert(result.header.empty());
+        assert(result.error.find("unsupported capability") !=
+               std::string::npos);
+        assert(result.error.find("model 'OptionalStringValues'") !=
+               std::string::npos);
+        assert(result.error.find("field 'maybe_name'") != std::string::npos);
+        assert(result.error.find("json field 'maybe_name'") !=
+               std::string::npos);
+        assert(result.error.find("std::optional<std::string>") !=
+               std::string::npos);
+        assert(result.error.find("optional decode is only implemented for "
+                                 "std::optional<std::int64_t>") !=
+               std::string::npos);
+    }
+
     {
         const auto string_result =
             cjm::generator::simdjson::generate_header(make_string_project());
@@ -402,8 +464,7 @@ int main() {
         const auto nested_expected =
             read_file("tests/golden/simdjson_nested.expected.cjm.hpp");
         if (result.header != nested_expected) {
-            std::cerr << "generated simdjson nested header:\n"
-                      << result.header;
+            std::cerr << "generated simdjson nested header:\n" << result.header;
         }
         assert(result.header == nested_expected);
     }
@@ -418,9 +479,9 @@ int main() {
                std::string::npos);
         assert(result.header.find("value.maybe_count = std::nullopt;") !=
                std::string::npos);
-        assert(result.header.find(
-                   "detail::decode_object(decoded_address, "
-                   "value.address, error)") != std::string::npos);
+        assert(result.header.find("detail::decode_object(decoded_address, "
+                                  "value.address, error)") !=
+               std::string::npos);
 
         const auto vertical_slice_expected =
             read_file("tests/golden/simdjson_vertical_slice.expected.cjm.hpp");
