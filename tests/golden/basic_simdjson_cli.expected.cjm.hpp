@@ -80,8 +80,8 @@ inline bool decode_object(
         }
 
         if (key == "name") {
-            std::string_view decoded_name;
-            runtime_error = field.value().get_string().get(decoded_name);
+            std::string_view decoded_name_view;
+            runtime_error = field.value().get_string().get(decoded_name_view);
             if (runtime_error) {
                 error.code = DecodeErrorCode::expected_string;
                 error.path.push_back(
@@ -89,7 +89,7 @@ inline bool decode_object(
                 error.runtime_error = runtime_error;
                 return false;
             }
-            value.name.assign(decoded_name.begin(), decoded_name.end());
+            value.name.assign(decoded_name_view.begin(), decoded_name_view.end());
             has_name = true;
             continue;
         }

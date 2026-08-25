@@ -45,18 +45,34 @@ format_unsupported_capability(const UnsupportedCapability& unsupported) {
           << "', json field '" << unsupported.json_name << "', C++ type '"
           << unsupported.type_name << "': " << unsupported.reason
           << ". Supported simdjson decode shapes currently include bool, "
-          << "string, signed integers, unsigned integers, "
-             "std::optional<std::int64_t>, and generated nested models.";
+          << "string, signed integers, unsigned integers, optional scalar "
+             "fields, and generated nested models.";
     return error.str();
 }
 
 // Return whether an optional field has a complete generated decoder.
 bool is_supported_optional_field(const metadata::FieldType& type) {
-    return type.kind == metadata::FieldTypeKind::Optional &&
-           type.arguments.size() == 1 &&
-           type.arguments[0].kind == metadata::FieldTypeKind::SignedInteger &&
-           type.arguments[0].spelling == "std::int64_t" &&
-           type.arguments[0].qualified_name == "std::int64_t";
+    if (type.kind != metadata::FieldTypeKind::Optional ||
+        type.arguments.size() != 1) {
+        return false;
+    }
+
+    switch (type.arguments[0].kind) {
+    case metadata::FieldTypeKind::Bool:
+    case metadata::FieldTypeKind::SignedInteger:
+    case metadata::FieldTypeKind::UnsignedInteger:
+    case metadata::FieldTypeKind::String:
+        return true;
+    case metadata::FieldTypeKind::FloatingPoint:
+    case metadata::FieldTypeKind::Enum:
+    case metadata::FieldTypeKind::Array:
+    case metadata::FieldTypeKind::Vector:
+    case metadata::FieldTypeKind::Map:
+    case metadata::FieldTypeKind::Optional:
+    case metadata::FieldTypeKind::UserDefined:
+        return false;
+    }
+    return false;
 }
 
 // Return whether a user-defined field has a complete generated decoder.
@@ -117,8 +133,7 @@ unsupported_capability_for_field(const metadata::TypeModel& type,
         reason = "map decode is not implemented";
         break;
     case metadata::FieldTypeKind::Optional:
-        reason = "optional decode is only implemented for "
-                 "std::optional<std::int64_t>";
+        reason = "optional decode is only implemented for scalar inner values";
         break;
     case metadata::FieldTypeKind::UserDefined:
         reason = "nested model decode requires a resolved user-defined type";
@@ -150,6 +165,28 @@ std::string generated_type_name(const metadata::TypeModel& type) {
         return name;
     }
     return "::" + name;
+}
+
+// Return the generated C++ type spelling for an optional inner value.
+std::string optional_inner_type_name(const metadata::FieldType& inner_type) {
+    switch (inner_type.kind) {
+    case metadata::FieldTypeKind::Bool:
+        return "bool";
+    case metadata::FieldTypeKind::String:
+        return "std::string";
+    case metadata::FieldTypeKind::SignedInteger:
+    case metadata::FieldTypeKind::UnsignedInteger:
+        return metadata_type_name(inner_type);
+    case metadata::FieldTypeKind::FloatingPoint:
+    case metadata::FieldTypeKind::Enum:
+    case metadata::FieldTypeKind::Array:
+    case metadata::FieldTypeKind::Vector:
+    case metadata::FieldTypeKind::Map:
+    case metadata::FieldTypeKind::Optional:
+    case metadata::FieldTypeKind::UserDefined:
+        return metadata_type_name(inner_type);
+    }
+    return metadata_type_name(inner_type);
 }
 
 // Write one generated source line at the requested indentation level.
@@ -256,7 +293,7 @@ void generate_string_value_decode(std::ostringstream& out,
                                   const std::string& simdjson_value_expression,
                                   const std::string& target_expression,
                                   std::size_t indent_level) {
-    const std::string decoded_name = "decoded_" + field.name;
+    const std::string decoded_name = "decoded_" + field.name + "_view";
 
     write_line(out, indent_level, "std::string_view " + decoded_name + ";");
     write_line(out, indent_level,
@@ -379,10 +416,13 @@ void generate_scalar_field_decode(std::ostringstream& out,
     write_line(out, 2, "}");
 }
 
-// Generate one optional signed 64-bit integer field decoder.
-void generate_optional_integer_field_decode(std::ostringstream& out,
-                                            const metadata::FieldModel& field) {
+// Generate one optional scalar field decoder.
+void generate_optional_field_decode(std::ostringstream& out,
+                                    const metadata::FieldModel& field) {
+    const auto& inner_type = field.type.arguments[0];
+
     const std::string decoded_name = "decoded_" + field.name;
+    const std::string target_name = decoded_name + "_value";
 
     write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
     write_line(out, 3, "value." + field.name + " = std::nullopt;");
@@ -390,18 +430,13 @@ void generate_optional_integer_field_decode(std::ostringstream& out,
     write_line(out, 4, "continue;");
     write_line(out, 3, "}");
 
-    write_line(out, 3, "std::int64_t " + decoded_name + " = 0;");
     write_line(out, 3,
-               "runtime_error = field.value().get_int64().get(" + decoded_name +
-                   ");");
-    write_line(out, 3, "if (runtime_error) {");
-    write_line(out, 4, "error.code = DecodeErrorCode::expected_integer;");
-    generate_field_error_path(out, field, 4);
-    write_line(out, 4, "error.runtime_error = runtime_error;");
-    write_line(out, 4, "return false;");
-    write_line(out, 3, "}");
+               optional_inner_type_name(inner_type) + " " + target_name +
+                   "{};");
+    generate_scalar_value_decode(out, field, inner_type, "field.value()",
+                                 target_name, 3);
 
-    write_line(out, 3, "value." + field.name + " = " + decoded_name + ";");
+    write_line(out, 3, "value." + field.name + " = " + target_name + ";");
     write_line(out, 3, "continue;");
     write_line(out, 2, "}");
 }
@@ -449,7 +484,7 @@ void generate_field_decode(std::ostringstream& out,
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
-        generate_optional_integer_field_decode(out, field);
+        generate_optional_field_decode(out, field);
         return;
     case metadata::FieldTypeKind::UserDefined:
         generate_user_defined_field_decode(out, field);

@@ -79,8 +79,8 @@ inline bool decode_object(
         }
 
         if (key == "city") {
-            std::string_view decoded_city;
-            runtime_error = field.value().get_string().get(decoded_city);
+            std::string_view decoded_city_view;
+            runtime_error = field.value().get_string().get(decoded_city_view);
             if (runtime_error) {
                 error.code = DecodeErrorCode::expected_string;
                 error.path.push_back(
@@ -88,7 +88,7 @@ inline bool decode_object(
                 error.runtime_error = runtime_error;
                 return false;
             }
-            value.city.assign(decoded_city.begin(), decoded_city.end());
+            value.city.assign(decoded_city_view.begin(), decoded_city_view.end());
             has_city = true;
             continue;
         }

@@ -125,31 +125,36 @@ ProjectModel make_vector_project() {
     return project;
 }
 
-// Build one model containing an optional type outside the current simdjson
-// slice.
-ProjectModel make_optional_string_project() {
-    FieldType inner{
+// Build one model containing an optional inner type outside the current
+// simdjson slice.
+ProjectModel make_optional_vector_project() {
+    FieldType vector_inner{
         FieldTypeKind::String,
         "std::string",
         "std::string",
     };
-
+    FieldType inner{
+        FieldTypeKind::Vector,
+        "std::vector<std::string>",
+        "std::vector",
+        {vector_inner},
+    };
     FieldType optional_type{
         FieldTypeKind::Optional,
-        "std::optional<std::string>",
+        "std::optional<std::vector<std::string>>",
         "std::optional",
         {inner},
     };
 
     TypeModel type;
-    type.name = "OptionalStringValues";
-    type.qualified_name = "OptionalStringValues";
+    type.name = "OptionalVectorValues";
+    type.qualified_name = "OptionalVectorValues";
     type.fields = {
         FieldModel{
-            "maybe_name",
+            "maybe_tags",
             optional_type,
-            JsonFieldMetadata{"maybe_name", false, false},
-            SourceLocation{"tests/fixtures/optional_string_values.hpp", 1, 1},
+            JsonFieldMetadata{"maybe_tags", false, false},
+            SourceLocation{"tests/fixtures/optional_vector_values.hpp", 1, 1},
         },
     };
 
@@ -171,31 +176,98 @@ ProjectModel make_string_project() {
     return project;
 }
 
-// Build one model containing an optional signed integer field.
-ProjectModel make_optional_integer_project() {
-    FieldType inner{
+// Build one model containing supported optional scalar fields.
+ProjectModel make_optional_scalar_project() {
+    FieldType bool_inner{
+        FieldTypeKind::Bool,
+        "bool",
+        "bool",
+    };
+    FieldType signed_inner{
         FieldTypeKind::SignedInteger,
         "std::int64_t",
         "std::int64_t",
     };
 
-    FieldType optional_type{
+    FieldType unsigned_inner{
+        FieldTypeKind::UnsignedInteger,
+        "std::uint64_t",
+        "std::uint64_t",
+    };
+
+    FieldType string_inner{
+        FieldTypeKind::String,
+        "std::string",
+        "std::string",
+    };
+
+    FieldType optional_bool_type{
+        FieldTypeKind::Optional,
+        "std::optional<bool>",
+        "std::optional",
+        {bool_inner},
+    };
+
+    FieldType optional_signed_type{
         FieldTypeKind::Optional,
         "std::optional<std::int64_t>",
         "std::optional",
-        {inner},
+        {signed_inner},
+    };
+    FieldType optional_unsigned_type{
+        FieldTypeKind::Optional,
+        "std::optional<std::uint64_t>",
+        "std::optional",
+        {unsigned_inner},
+    };
+    FieldType optional_string_type{
+        FieldTypeKind::Optional,
+        "std::optional<std::string>",
+        "std::optional",
+        {string_inner},
     };
 
     TypeModel type;
-    type.name = "OptionalIntegerValues";
-    type.qualified_name = "OptionalIntegerValues";
+    type.name = "OptionalScalarValues";
+    type.qualified_name = "OptionalScalarValues";
     type.fields = {
         FieldModel{
+            "maybe_enabled",
+            optional_bool_type,
+            JsonFieldMetadata{"maybe_enabled", false, false},
+            SourceLocation{
+                "tests/fixtures/optional_scalar_values.hpp",
+                1,
+                1,
+            },
+        },
+        FieldModel{
             "maybe_count",
-            optional_type,
+            optional_signed_type,
             JsonFieldMetadata{"maybe_count", false, false},
             SourceLocation{
-                "tests/fixtures/optional_integer_values.hpp",
+                "tests/fixtures/optional_scalar_values.hpp",
+                1,
+                1,
+            },
+
+        },
+        FieldModel{
+            "maybe_limit",
+            optional_unsigned_type,
+            JsonFieldMetadata{"maybe_limit", false, false},
+            SourceLocation{
+                "tests/fixtures/optional_scalar_values.hpp",
+                1,
+                1,
+            },
+        },
+        FieldModel{
+            "maybe_name",
+            optional_string_type,
+            JsonFieldMetadata{"maybe_name", false, false},
+            SourceLocation{
+                "tests/fixtures/optional_scalar_values.hpp",
                 1,
                 1,
             },
@@ -378,17 +450,16 @@ int main() {
         expect_unsupported_capability(vector_result, "VectorValues", "tags",
                                       "tags", "std::vector<std::string>",
                                       "vector decode is not implemented");
-        assert(vector_result.error.find("std::optional<std::int64_t>") !=
+        assert(vector_result.error.find("optional scalar fields") !=
                std::string::npos);
     }
     {
         const auto result = cjm::generator::simdjson::generate_header(
-            make_optional_string_project());
-        expect_unsupported_capability(result, "OptionalStringValues",
-                                      "maybe_name", "maybe_name",
-                                      "std::optional<std::string>",
-                                      "optional decode is only implemented for "
-                                      "std::optional<std::int64_t>");
+            make_optional_vector_project());
+        expect_unsupported_capability(
+            result, "OptionalVectorValues", "maybe_tags", "maybe_tags",
+            "std::optional<std::vector<std::string>>",
+            "optional decode is only implemented for scalar inner values");
     }
     {
         const auto result =
@@ -446,16 +517,16 @@ int main() {
         assert(string_result.error.empty());
         assert(string_result.header.find("from_json<::StringValues>(") !=
                std::string::npos);
-        assert(string_result.header.find("std::string_view decoded_name;") !=
-               std::string::npos);
         assert(string_result.header.find(
-                   "field.value().get_string().get(decoded_name)") !=
+                   "std::string_view decoded_name_view;") != std::string::npos);
+        assert(string_result.header.find(
+                   "field.value().get_string().get(decoded_name_view)") !=
                std::string::npos);
         assert(string_result.header.find("DecodeErrorCode::expected_string") !=
                std::string::npos);
-        assert(string_result.header.find("value.name.assign(decoded_name.begin("
-                                         "), decoded_name.end())") !=
-               std::string::npos);
+        assert(string_result.header.find(
+                   "value.name.assign(decoded_name_view.begin("
+                   "), decoded_name_view.end())") != std::string::npos);
 
         const auto string_expected =
             read_file("tests/golden/simdjson_string.expected.cjm.hpp");
@@ -467,33 +538,91 @@ int main() {
     }
     {
         const auto result = cjm::generator::simdjson::generate_header(
-            make_optional_integer_project());
+            make_optional_scalar_project());
         assert(result.success);
         assert(result.error.empty());
-        assert(result.header.find("from_json<::OptionalIntegerValues>(") !=
+        assert(result.header.find("from_json<::OptionalScalarValues>(") !=
                std::string::npos);
 
+        assert(result.header.find("bool has_maybe_enabled = false;") ==
+               std::string::npos);
         assert(result.header.find("bool has_maybe_count = false;") ==
+               std::string::npos);
+        assert(result.header.find("bool has_maybe_limit = false;") ==
+               std::string::npos);
+        assert(result.header.find("bool has_maybe_name = false;") ==
+               std::string::npos);
+
+        assert(result.header.find("value.maybe_enabled = std::nullopt;") !=
                std::string::npos);
         assert(result.header.find("value.maybe_count = std::nullopt;") !=
                std::string::npos);
+        assert(result.header.find("value.maybe_limit = std::nullopt;") !=
+               std::string::npos);
+        assert(result.header.find("value.maybe_name = std::nullopt;") !=
+               std::string::npos);
         assert(result.header.find("field.value().is_null()") !=
                std::string::npos);
-        assert(result.header.find("std::int64_t decoded_maybe_count = 0;") !=
+
+        assert(result.header.find("bool decoded_maybe_enabled_value{};") !=
                std::string::npos);
+        assert(
+            result.header.find("std::int64_t decoded_maybe_count_value{};") !=
+            std::string::npos);
+        assert(
+            result.header.find("std::uint64_t decoded_maybe_limit_value{};") !=
+            std::string::npos);
+        assert(result.header.find("std::string decoded_maybe_name_value{};") !=
+               std::string::npos);
+
         assert(result.header.find(
                    "field.value().get_int64().get(decoded_maybe_count)") !=
                std::string::npos);
+
+        assert(result.header.find(
+                   "field.value().get_uint64().get(decoded_maybe_limit)") !=
+               std::string::npos);
+        assert(result.header.find("field.value().get_string().get(decoded_"
+                                  "maybe_name_view)") != std::string::npos);
+
+        assert(result.header.find("if (!has_maybe_enabled)") ==
+               std::string::npos);
         assert(result.header.find("if (!has_maybe_count)") ==
                std::string::npos);
-        assert(result.header.find("value.maybe_count = decoded_maybe_count") !=
+        assert(result.header.find("if (!has_maybe_limit)") ==
+               std::string::npos);
+        assert(result.header.find("if (!has_maybe_name)") == std::string::npos);
+
+        assert(result.header.find(
+                   "value.maybe_enabled = decoded_maybe_enabled_value") !=
+               std::string::npos);
+
+        assert(result.header.find(
+                   "value.maybe_count = decoded_maybe_count_value") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "value.maybe_limit = decoded_maybe_limit_value") !=
+               std::string::npos);
+        assert(
+            result.header.find("value.maybe_name = decoded_maybe_name_value") !=
+            std::string::npos);
+        assert(
+            result.header.find(
+                "field.value().get_bool().get(decoded_maybe_enabled_value)") !=
+            std::string::npos);
+        assert(result.header.find("DecodeErrorCode::expected_bool") !=
                std::string::npos);
         assert(result.header.find("DecodeErrorCode::expected_integer") !=
+               std::string::npos);
+        assert(
+            result.header.find("DecodeErrorCode::expected_unsigned_integer") !=
+            std::string::npos);
+        assert(result.header.find("DecodeErrorCode::expected_string") !=
                std::string::npos);
         const auto optional_integer_expected = read_file(
             "tests/golden/simdjson_optional_integer.expected.cjm.hpp");
         if (result.header != optional_integer_expected) {
-            std::cerr << "generated simdjson optional integer header:\n"
+            std::cerr << "generated simdjson optional scalar header:\n"
                       << result.header;
         }
         assert(result.header == optional_integer_expected);
@@ -535,7 +664,7 @@ int main() {
         assert(result.error.empty());
         assert(result.header.find("from_json<::SliceUser>(") !=
                std::string::npos);
-        assert(result.header.find("std::string_view decoded_name;") !=
+        assert(result.header.find("std::string_view decoded_name_view;") !=
                std::string::npos);
         assert(result.header.find("value.maybe_count = std::nullopt;") !=
                std::string::npos);

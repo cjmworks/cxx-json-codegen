@@ -79,8 +79,8 @@ inline bool decode_object(
         }
 
         if (key == "city") {
-            std::string_view decoded_city;
-            runtime_error = field.value().get_string().get(decoded_city);
+            std::string_view decoded_city_view;
+            runtime_error = field.value().get_string().get(decoded_city_view);
             if (runtime_error) {
                 error.code = DecodeErrorCode::expected_string;
                 error.path.push_back(
@@ -88,7 +88,7 @@ inline bool decode_object(
                 error.runtime_error = runtime_error;
                 return false;
             }
-            value.city.assign(decoded_city.begin(), decoded_city.end());
+            value.city.assign(decoded_city_view.begin(), decoded_city_view.end());
             has_city = true;
             continue;
         }
@@ -208,8 +208,8 @@ inline bool decode_object(
             continue;
         }
         if (key == "name") {
-            std::string_view decoded_name;
-            runtime_error = field.value().get_string().get(decoded_name);
+            std::string_view decoded_name_view;
+            runtime_error = field.value().get_string().get(decoded_name_view);
             if (runtime_error) {
                 error.code = DecodeErrorCode::expected_string;
                 error.path.push_back(
@@ -217,7 +217,7 @@ inline bool decode_object(
                 error.runtime_error = runtime_error;
                 return false;
             }
-            value.name.assign(decoded_name.begin(), decoded_name.end());
+            value.name.assign(decoded_name_view.begin(), decoded_name_view.end());
             has_name = true;
             continue;
         }
@@ -226,6 +226,8 @@ inline bool decode_object(
             if (field.value().is_null()) {
                 continue;
             }
+            std::int64_t decoded_maybe_count_value{};
+            using target_type = decltype(decoded_maybe_count_value);
             std::int64_t decoded_maybe_count = 0;
             runtime_error = field.value().get_int64().get(decoded_maybe_count);
             if (runtime_error) {
@@ -235,7 +237,20 @@ inline bool decode_object(
                 error.runtime_error = runtime_error;
                 return false;
             }
-            value.maybe_count = decoded_maybe_count;
+
+            const auto target_min = static_cast<std::int64_t>(
+                (std::numeric_limits<target_type>::min)());
+            const auto target_max = static_cast<std::int64_t>(
+                (std::numeric_limits<target_type>::max)());
+            if (decoded_maybe_count < target_min || decoded_maybe_count > target_max) {
+                error.code = DecodeErrorCode::integer_overflow;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "maybe_count", 0});
+                return false;
+            }
+
+            decoded_maybe_count_value = static_cast<target_type>(decoded_maybe_count);
+            value.maybe_count = decoded_maybe_count_value;
             continue;
         }
         if (key == "address") {

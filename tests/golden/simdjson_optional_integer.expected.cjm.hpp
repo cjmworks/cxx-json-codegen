@@ -61,7 +61,7 @@ namespace cjm::simdjson::detail {
 
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
-    ::OptionalIntegerValues& value,
+    ::OptionalScalarValues& value,
     DecodeError& error) {
     ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
 
@@ -77,11 +77,30 @@ inline bool decode_object(
             return false;
         }
 
+        if (key == "maybe_enabled") {
+            value.maybe_enabled = std::nullopt;
+            if (field.value().is_null()) {
+                continue;
+            }
+            bool decoded_maybe_enabled_value{};
+            runtime_error = field.value().get_bool().get(decoded_maybe_enabled_value);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_bool;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "maybe_enabled", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+            value.maybe_enabled = decoded_maybe_enabled_value;
+            continue;
+        }
         if (key == "maybe_count") {
             value.maybe_count = std::nullopt;
             if (field.value().is_null()) {
                 continue;
             }
+            std::int64_t decoded_maybe_count_value{};
+            using target_type = decltype(decoded_maybe_count_value);
             std::int64_t decoded_maybe_count = 0;
             runtime_error = field.value().get_int64().get(decoded_maybe_count);
             if (runtime_error) {
@@ -91,7 +110,69 @@ inline bool decode_object(
                 error.runtime_error = runtime_error;
                 return false;
             }
-            value.maybe_count = decoded_maybe_count;
+
+            const auto target_min = static_cast<std::int64_t>(
+                (std::numeric_limits<target_type>::min)());
+            const auto target_max = static_cast<std::int64_t>(
+                (std::numeric_limits<target_type>::max)());
+            if (decoded_maybe_count < target_min || decoded_maybe_count > target_max) {
+                error.code = DecodeErrorCode::integer_overflow;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "maybe_count", 0});
+                return false;
+            }
+
+            decoded_maybe_count_value = static_cast<target_type>(decoded_maybe_count);
+            value.maybe_count = decoded_maybe_count_value;
+            continue;
+        }
+        if (key == "maybe_limit") {
+            value.maybe_limit = std::nullopt;
+            if (field.value().is_null()) {
+                continue;
+            }
+            std::uint64_t decoded_maybe_limit_value{};
+            using target_type = decltype(decoded_maybe_limit_value);
+            std::uint64_t decoded_maybe_limit = 0;
+            runtime_error = field.value().get_uint64().get(decoded_maybe_limit);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_unsigned_integer;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "maybe_limit", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+
+            const auto target_max = static_cast<std::uint64_t>(
+                (std::numeric_limits<target_type>::max)());
+            if (decoded_maybe_limit > target_max) {
+                error.code = DecodeErrorCode::integer_overflow;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "maybe_limit", 0});
+                return false;
+            }
+
+            decoded_maybe_limit_value = static_cast<target_type>(decoded_maybe_limit);
+            value.maybe_limit = decoded_maybe_limit_value;
+            continue;
+        }
+        if (key == "maybe_name") {
+            value.maybe_name = std::nullopt;
+            if (field.value().is_null()) {
+                continue;
+            }
+            std::string decoded_maybe_name_value{};
+            std::string_view decoded_maybe_name_view;
+            runtime_error = field.value().get_string().get(decoded_maybe_name_view);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_string;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "maybe_name", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+            decoded_maybe_name_value.assign(decoded_maybe_name_view.begin(), decoded_maybe_name_view.end());
+            value.maybe_name = decoded_maybe_name_value;
             continue;
         }
     }
@@ -107,8 +188,8 @@ inline bool decode_object(
 namespace cjm::simdjson {
 
 template <>
-inline std::optional<::OptionalIntegerValues>
-from_json<::OptionalIntegerValues>(
+inline std::optional<::OptionalScalarValues>
+from_json<::OptionalScalarValues>(
     std::string_view input,
     DecodeError& error) {
     // 1. Prepare the padded input owned for this decode.
@@ -135,7 +216,7 @@ from_json<::OptionalIntegerValues>(
         return std::nullopt;
     }
     // 3. Decode the root object into a new value.
-    ::OptionalIntegerValues value{};
+    ::OptionalScalarValues value{};
     if (!detail::decode_object(object, value, error)) {
         return std::nullopt;
     }
