@@ -231,53 +231,57 @@ void generate_prepend_field_error_path(std::ostringstream& out,
                    "\", 0});");
 }
 
-// Generate one required bool field decoder.
-void generate_bool_field_decode(std::ostringstream& out,
-                                const metadata::FieldModel& field) {
-    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
-    write_line(out, 3,
-               "runtime_error = field.value().get_bool().get(value." +
-                   field.name + ");");
-    write_line(out, 3, "if (runtime_error) {");
-    write_line(out, 4, "error.code = DecodeErrorCode::expected_bool;");
-    generate_field_error_path(out, field, 4);
-    write_line(out, 4, "error.runtime_error = runtime_error;");
-    write_line(out, 4, "return false;");
-    write_line(out, 3, "}");
-    write_line(out, 3, "has_" + field.name + " = true;");
-    write_line(out, 3, "continue;");
-    write_line(out, 2, "}");
+// Generate one bool value decoder.
+void generate_bool_value_decode(std::ostringstream& out,
+                                const metadata::FieldModel& field,
+                                const std::string& simdjson_value_expression,
+                                const std::string& target_expression,
+                                std::size_t indent_level) {
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression +
+                   ".get_bool().get(" + target_expression + ");");
+
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::expected_bool;");
+    generate_field_error_path(out, field, indent_level + 1);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
 }
 
-// Generate one required owned string field decoder.
-void generate_string_field_decode(std::ostringstream& out,
-                                  const metadata::FieldModel& field) {
+// Generate one owned string value decoder.
+void generate_string_value_decode(std::ostringstream& out,
+                                  const metadata::FieldModel& field,
+                                  const std::string& simdjson_value_expression,
+                                  const std::string& target_expression,
+                                  std::size_t indent_level) {
     const std::string decoded_name = "decoded_" + field.name;
 
-    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
-    write_line(out, 3, "std::string_view " + decoded_name + ";");
-    write_line(out, 3,
-               "runtime_error = field.value().get_string().get(" +
-                   decoded_name + ");");
-    write_line(out, 3, "if (runtime_error) {");
-    write_line(out, 4, "error.code = DecodeErrorCode::expected_string;");
-    generate_field_error_path(out, field, 4);
-    write_line(out, 4, "error.runtime_error = runtime_error;");
-    write_line(out, 4, "return false;");
-    write_line(out, 3, "}");
-    write_line(out, 3,
-               "value." + field.name + ".assign(" + decoded_name +
-                   ".begin(), " + decoded_name + ".end());");
-    write_line(out, 3, "has_" + field.name + " = true;");
-    write_line(out, 3, "continue;");
-    write_line(out, 2, "}");
+    write_line(out, indent_level, "std::string_view " + decoded_name + ";");
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression +
+                   ".get_string().get(" + decoded_name + ");");
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::expected_string;");
+    generate_field_error_path(out, field, indent_level + 1);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
+    write_line(out, indent_level,
+               target_expression + ".assign(" + decoded_name + ".begin(), " +
+                   decoded_name + ".end());");
 }
 
-// Generate one required signed or unsigned integer field decoder.
-void generate_integer_field_decode(std::ostringstream& out,
-                                   const metadata::FieldModel& field) {
-    const bool is_signed =
-        field.type.kind == metadata::FieldTypeKind::SignedInteger;
+// Generate one signed or unsigned integer value decoder.
+void generate_integer_value_decode(std::ostringstream& out,
+                                   const metadata::FieldModel& field,
+                                   const metadata::FieldType& type,
+                                   const std::string& simdjson_value_expression,
+                                   const std::string& target_expression,
+                                   std::size_t indent_level) {
+    const bool is_signed = type.kind == metadata::FieldTypeKind::SignedInteger;
     const std::string decoded_type =
         is_signed ? "std::int64_t" : "std::uint64_t";
     const std::string getter = is_signed ? "get_int64" : "get_uint64";
@@ -286,30 +290,31 @@ void generate_integer_field_decode(std::ostringstream& out,
                   : "DecodeErrorCode::expected_unsigned_integer";
     const std::string decoded_name = "decoded_" + field.name;
 
-    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
-    write_line(out, 3,
-               "using target_type = decltype(value." + field.name + ");");
-    write_line(out, 3, decoded_type + " " + decoded_name + " = 0;");
-    write_line(out, 3,
-               "runtime_error = field.value()." + getter + "().get(" +
-                   decoded_name + ");");
-    write_line(out, 3, "if (runtime_error) {");
-    write_line(out, 4, "error.code = " + expected_error + ";");
-    generate_field_error_path(out, field, 4);
-    write_line(out, 4, "error.runtime_error = runtime_error;");
-    write_line(out, 4, "return false;");
-    write_line(out, 3, "}");
+    write_line(out, indent_level,
+               "using target_type = decltype(" + target_expression + ");");
+    write_line(out, indent_level, decoded_type + " " + decoded_name + " = 0;");
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression + "." + getter +
+                   "().get(" + decoded_name + ");");
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1, "error.code = " + expected_error + ";");
+    generate_field_error_path(out, field, indent_level + 1);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
     out << "\n";
 
     if (is_signed) {
-        write_line(out, 3,
+        write_line(out, indent_level,
                    "const auto target_min = static_cast<std::int64_t>(");
-        write_line(out, 4, "(std::numeric_limits<target_type>::min)());");
+        write_line(out, indent_level + 1,
+                   "(std::numeric_limits<target_type>::min)());");
     }
 
-    write_line(out, 3,
+    write_line(out, indent_level,
                "const auto target_max = static_cast<" + decoded_type + ">(");
-    write_line(out, 4, "(std::numeric_limits<target_type>::max)());");
+    write_line(out, indent_level + 1,
+               "(std::numeric_limits<target_type>::max)());");
 
     std::string overflow_condition = decoded_name + " > target_max";
     if (is_signed) {
@@ -317,16 +322,58 @@ void generate_integer_field_decode(std::ostringstream& out,
             decoded_name + " < target_min || " + overflow_condition;
     }
 
-    write_line(out, 3, "if (" + overflow_condition + ") {");
-    write_line(out, 4, "error.code = DecodeErrorCode::integer_overflow;");
-    generate_field_error_path(out, field, 4);
-    write_line(out, 4, "return false;");
-    write_line(out, 3, "}");
+    write_line(out, indent_level, "if (" + overflow_condition + ") {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::integer_overflow;");
+    generate_field_error_path(out, field, indent_level + 1);
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
     out << "\n";
 
-    write_line(out, 3,
-               "value." + field.name + " = static_cast<target_type>(" +
+    write_line(out, indent_level,
+               target_expression + " = static_cast<target_type>(" +
                    decoded_name + ");");
+}
+
+// Generate one supported scalar value decoder.
+void generate_scalar_value_decode(std::ostringstream& out,
+                                  const metadata::FieldModel& field,
+                                  const metadata::FieldType& type,
+                                  const std::string& simdjson_value_expression,
+                                  const std::string& target_expression,
+                                  std::size_t indent_level) {
+    switch (type.kind) {
+    case metadata::FieldTypeKind::Bool:
+        generate_bool_value_decode(out, field, simdjson_value_expression,
+                                   target_expression, indent_level);
+        return;
+    case metadata::FieldTypeKind::String:
+        generate_string_value_decode(out, field, simdjson_value_expression,
+                                     target_expression, indent_level);
+        return;
+    case metadata::FieldTypeKind::SignedInteger:
+    case metadata::FieldTypeKind::UnsignedInteger:
+        generate_integer_value_decode(out, field, type,
+                                      simdjson_value_expression,
+                                      target_expression, indent_level);
+        return;
+    case metadata::FieldTypeKind::FloatingPoint:
+    case metadata::FieldTypeKind::Enum:
+    case metadata::FieldTypeKind::Array:
+    case metadata::FieldTypeKind::Vector:
+    case metadata::FieldTypeKind::Map:
+    case metadata::FieldTypeKind::Optional:
+    case metadata::FieldTypeKind::UserDefined:
+        return;
+    }
+}
+
+// Generate one required scalar field decoder.
+void generate_scalar_field_decode(std::ostringstream& out,
+                                  const metadata::FieldModel& field) {
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    generate_scalar_value_decode(out, field, field.type, "field.value()",
+                                 "value." + field.name, 3);
     write_line(out, 3, "has_" + field.name + " = true;");
     write_line(out, 3, "continue;");
     write_line(out, 2, "}");
@@ -391,16 +438,12 @@ void generate_field_decode(std::ostringstream& out,
                            const metadata::FieldModel& field) {
     switch (field.type.kind) {
     case metadata::FieldTypeKind::Bool:
-        generate_bool_field_decode(out, field);
-        return;
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
-        generate_integer_field_decode(out, field);
+    case metadata::FieldTypeKind::String:
+        generate_scalar_field_decode(out, field);
         return;
     case metadata::FieldTypeKind::FloatingPoint:
-    case metadata::FieldTypeKind::String:
-        generate_string_field_decode(out, field);
-        return;
     case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
