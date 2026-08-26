@@ -27,6 +27,7 @@ enum class DecodeErrorCode {
     expected_string,
     expected_integer,
     expected_unsigned_integer,
+    invalid_enum_string,
     integer_overflow,
     missing_required_field
 };
@@ -173,6 +174,39 @@ inline bool decode_object(
             }
             decoded_maybe_name_value.assign(decoded_maybe_name_view.begin(), decoded_maybe_name_view.end());
             value.maybe_name = decoded_maybe_name_value;
+            continue;
+        }
+        if (key == "maybe_status") {
+            value.maybe_status = std::nullopt;
+            if (field.value().is_null()) {
+                continue;
+            }
+            ::Status decoded_maybe_status_value{};
+            std::string_view decoded_maybe_status_view;
+            runtime_error = field.value().get_string().get(decoded_maybe_status_view);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_string;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "maybe_status", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+            bool decoded_maybe_status_matches = false;
+            if (decoded_maybe_status_view == "Active") {
+                decoded_maybe_status_value = ::Status::Active;
+                decoded_maybe_status_matches = true;
+            }
+            if (decoded_maybe_status_view == "Disabled") {
+                decoded_maybe_status_value = ::Status::Disabled;
+                decoded_maybe_status_matches = true;
+            }
+            if (!decoded_maybe_status_matches) {
+                error.code = DecodeErrorCode::invalid_enum_string;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "maybe_status", 0});
+                return false;
+            }
+            value.maybe_status = decoded_maybe_status_value;
             continue;
         }
     }

@@ -176,6 +176,26 @@ ProjectModel make_string_project() {
     return project;
 }
 
+// Build one model containing a required enum string field.
+ProjectModel make_enum_project() {
+    TypeModel type;
+    type.name = "EnumValues";
+    type.qualified_name = "EnumValues";
+    type.fields = {
+        make_required_field("status", FieldTypeKind::Enum, "Status"),
+    };
+
+    cjm::metadata::EnumModel status;
+    status.name = "Status";
+    status.qualified_name = "Status";
+    status.enumerators = {"Active", "Disabled"};
+
+    ProjectModel project;
+    project.types = {type};
+    project.enums = {status};
+    return project;
+}
+
 // Build one model containing supported optional scalar fields.
 ProjectModel make_optional_scalar_project() {
     FieldType bool_inner{
@@ -199,6 +219,12 @@ ProjectModel make_optional_scalar_project() {
         FieldTypeKind::String,
         "std::string",
         "std::string",
+    };
+
+    FieldType enum_inner{
+        FieldTypeKind::Enum,
+        "Status",
+        "Status",
     };
 
     FieldType optional_bool_type{
@@ -225,6 +251,12 @@ ProjectModel make_optional_scalar_project() {
         "std::optional<std::string>",
         "std::optional",
         {string_inner},
+    };
+    FieldType optional_enum_type{
+        FieldTypeKind::Optional,
+        "std::optional<Status>",
+        "std::optional",
+        {enum_inner},
     };
 
     TypeModel type;
@@ -272,10 +304,26 @@ ProjectModel make_optional_scalar_project() {
                 1,
             },
         },
+        FieldModel{
+            "maybe_status",
+            optional_enum_type,
+            JsonFieldMetadata{"maybe_status", false, false},
+            SourceLocation{
+                "tests/fixtures/optional_scalar_values.hpp",
+                1,
+                1,
+            },
+        },
     };
+
+    cjm::metadata::EnumModel status;
+    status.name = "Status";
+    status.qualified_name = "Status";
+    status.enumerators = {"Active", "Disabled"};
 
     ProjectModel project;
     project.types = {type};
+    project.enums = {status};
     return project;
 }
 
@@ -473,12 +521,30 @@ int main() {
     }
     {
         const auto result =
-            cjm::generator::simdjson::generate_header(make_single_field_project(
-                "EnumValues",
-                make_required_field("status", FieldTypeKind::Enum, "Status")));
-        expect_unsupported_capability(result, "EnumValues", "status", "status",
-                                      "Status",
-                                      "enum string decode is not implemented");
+            cjm::generator::simdjson::generate_header(make_enum_project());
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find("from_json<::EnumValues>(") !=
+               std::string::npos);
+        assert(result.header.find("std::string_view decoded_status_view;") !=
+               std::string::npos);
+        assert(result.header.find("if (decoded_status_view == \"Active\")") !=
+               std::string::npos);
+        assert(result.header.find("value.status = ::Status::Active;") !=
+               std::string::npos);
+        assert(result.header.find("if (decoded_status_view == \"Disabled\")") !=
+               std::string::npos);
+        assert(result.header.find("value.status = ::Status::Disabled;") !=
+               std::string::npos);
+        assert(result.header.find("DecodeErrorCode::invalid_enum_string") !=
+               std::string::npos);
+
+        const auto enum_expected =
+            read_file("tests/golden/simdjson_enum.expected.cjm.hpp");
+        if (result.header != enum_expected) {
+            std::cerr << "generated simdjson enum header:\n" << result.header;
+        }
+        assert(result.header == enum_expected);
     }
     {
         auto field = make_required_field("samples", FieldTypeKind::Array,
@@ -552,6 +618,8 @@ int main() {
                std::string::npos);
         assert(result.header.find("bool has_maybe_name = false;") ==
                std::string::npos);
+        assert(result.header.find("bool has_maybe_status = false;") ==
+               std::string::npos);
 
         assert(result.header.find("value.maybe_enabled = std::nullopt;") !=
                std::string::npos);
@@ -560,6 +628,8 @@ int main() {
         assert(result.header.find("value.maybe_limit = std::nullopt;") !=
                std::string::npos);
         assert(result.header.find("value.maybe_name = std::nullopt;") !=
+               std::string::npos);
+        assert(result.header.find("value.maybe_status = std::nullopt;") !=
                std::string::npos);
         assert(result.header.find("field.value().is_null()") !=
                std::string::npos);
@@ -574,6 +644,8 @@ int main() {
             std::string::npos);
         assert(result.header.find("std::string decoded_maybe_name_value{};") !=
                std::string::npos);
+        assert(result.header.find("::Status decoded_maybe_status_value{};") !=
+               std::string::npos);
 
         assert(result.header.find(
                    "field.value().get_int64().get(decoded_maybe_count)") !=
@@ -584,6 +656,8 @@ int main() {
                std::string::npos);
         assert(result.header.find("field.value().get_string().get(decoded_"
                                   "maybe_name_view)") != std::string::npos);
+        assert(result.header.find("field.value().get_string().get(decoded_"
+                                  "maybe_status_view)") != std::string::npos);
 
         assert(result.header.find("if (!has_maybe_enabled)") ==
                std::string::npos);
@@ -592,6 +666,8 @@ int main() {
         assert(result.header.find("if (!has_maybe_limit)") ==
                std::string::npos);
         assert(result.header.find("if (!has_maybe_name)") == std::string::npos);
+        assert(result.header.find("if (!has_maybe_status)") ==
+               std::string::npos);
 
         assert(result.header.find(
                    "value.maybe_enabled = decoded_maybe_enabled_value") !=
@@ -606,6 +682,12 @@ int main() {
         assert(
             result.header.find("value.maybe_name = decoded_maybe_name_value") !=
             std::string::npos);
+        assert(result.header.find(
+                   "value.maybe_status = decoded_maybe_status_value") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "decoded_maybe_status_value = ::Status::Active") !=
+               std::string::npos);
         assert(
             result.header.find(
                 "field.value().get_bool().get(decoded_maybe_enabled_value)") !=
@@ -618,6 +700,8 @@ int main() {
             result.header.find("DecodeErrorCode::expected_unsigned_integer") !=
             std::string::npos);
         assert(result.header.find("DecodeErrorCode::expected_string") !=
+               std::string::npos);
+        assert(result.header.find("DecodeErrorCode::invalid_enum_string") !=
                std::string::npos);
         const auto optional_integer_expected = read_file(
             "tests/golden/simdjson_optional_integer.expected.cjm.hpp");

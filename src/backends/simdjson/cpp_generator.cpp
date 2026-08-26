@@ -46,12 +46,30 @@ format_unsupported_capability(const UnsupportedCapability& unsupported) {
           << unsupported.type_name << "': " << unsupported.reason
           << ". Supported simdjson decode shapes currently include bool, "
           << "string, signed integers, unsigned integers, optional scalar "
-             "fields, and generated nested models.";
+             "fields, enum strings, and generated nested models.";
     return error.str();
 }
 
+// Find the Metadata IR enum model for one enum field type.
+const metadata::EnumModel*
+find_enum_model(const std::vector<metadata::EnumModel>& enums,
+                const metadata::FieldType& type) {
+    if (type.kind != metadata::FieldTypeKind::Enum) {
+        return nullptr;
+    }
+
+    for (const auto& enum_model : enums) {
+        if (enum_model.qualified_name == type.qualified_name) {
+            return &enum_model;
+        }
+    }
+    return nullptr;
+}
+
 // Return whether an optional field has a complete generated decoder.
-bool is_supported_optional_field(const metadata::FieldType& type) {
+bool is_supported_optional_field(
+    const metadata::FieldType& type,
+    const std::vector<metadata::EnumModel>& enums) {
     if (type.kind != metadata::FieldTypeKind::Optional ||
         type.arguments.size() != 1) {
         return false;
@@ -63,8 +81,9 @@ bool is_supported_optional_field(const metadata::FieldType& type) {
     case metadata::FieldTypeKind::UnsignedInteger:
     case metadata::FieldTypeKind::String:
         return true;
-    case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::Enum:
+        return find_enum_model(enums, type.arguments[0]) != nullptr;
+    case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
@@ -88,9 +107,9 @@ bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
     case metadata::FieldTypeKind::String:
+    case metadata::FieldTypeKind::Enum:
         return true;
     case metadata::FieldTypeKind::FloatingPoint:
-    case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
@@ -101,16 +120,25 @@ bool is_supported_scalar_kind(metadata::FieldTypeKind kind) {
     return false;
 }
 
+// Return whether a field type has a complete scalar decoder.
+bool is_supported_scalar_type(const metadata::FieldType& type,
+                              const std::vector<metadata::EnumModel>& enums) {
+    if (type.kind == metadata::FieldTypeKind::Enum) {
+        return find_enum_model(enums, type) != nullptr;
+    }
+    return is_supported_scalar_kind(type.kind);
+}
+
 // Return the backend capability failure for one field, when supported.
-std::optional<UnsupportedCapability>
-unsupported_capability_for_field(const metadata::TypeModel& type,
-                                 const metadata::FieldModel& field) {
+std::optional<UnsupportedCapability> unsupported_capability_for_field(
+    const metadata::TypeModel& type, const metadata::FieldModel& field,
+    const std::vector<metadata::EnumModel>& enums) {
     if (field.json.ignored) {
         return std::nullopt;
     }
 
-    if (is_supported_scalar_kind(field.type.kind) ||
-        is_supported_optional_field(field.type) ||
+    if (is_supported_scalar_type(field.type, enums) ||
+        is_supported_optional_field(field.type, enums) ||
         is_supported_user_defined_field(field.type)) {
         return std::nullopt;
     }
@@ -121,7 +149,7 @@ unsupported_capability_for_field(const metadata::TypeModel& type,
         reason = "floating-point decode is not implemented";
         break;
     case metadata::FieldTypeKind::Enum:
-        reason = "enum string decode is not implemented";
+        reason = "enum string decode requires a resolved enum model";
         break;
     case metadata::FieldTypeKind::Array:
         reason = "fixed array decode is not implemented";
@@ -167,6 +195,16 @@ std::string generated_type_name(const metadata::TypeModel& type) {
     return "::" + name;
 }
 
+// Return the globally qualified C++ name of one enum field type.
+std::string generated_enum_type_name(const metadata::FieldType& type) {
+    const auto& name =
+        type.qualified_name.empty() ? type.spelling : type.qualified_name;
+    if (name.rfind("::", 0) == 0) {
+        return name;
+    }
+    return "::" + name;
+}
+
 // Return the generated C++ type spelling for an optional inner value.
 std::string optional_inner_type_name(const metadata::FieldType& inner_type) {
     switch (inner_type.kind) {
@@ -174,11 +212,12 @@ std::string optional_inner_type_name(const metadata::FieldType& inner_type) {
         return "bool";
     case metadata::FieldTypeKind::String:
         return "std::string";
+    case metadata::FieldTypeKind::Enum:
+        return generated_enum_type_name(inner_type);
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
         return metadata_type_name(inner_type);
     case metadata::FieldTypeKind::FloatingPoint:
-    case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
@@ -214,6 +253,7 @@ void generate_decode_error_model(std::ostringstream& out) {
         << "    expected_string,\n"
         << "    expected_integer,\n"
         << "    expected_unsigned_integer,\n"
+        << "    invalid_enum_string,\n"
         << "    integer_overflow,\n"
         << "    missing_required_field\n"
         << "};\n"
@@ -372,10 +412,53 @@ void generate_integer_value_decode(std::ostringstream& out,
                    decoded_name + ");");
 }
 
+// Generate one enum string value decoder.
+void generate_enum_value_decode(std::ostringstream& out,
+                                const metadata::FieldModel& field,
+                                const metadata::FieldType& type,
+                                const metadata::EnumModel& enum_model,
+                                const std::string& simdjson_value_expression,
+                                const std::string& target_expression,
+                                std::size_t indent_level) {
+    const std::string decoded_name = "decoded_" + field.name + "_view";
+    const std::string matched_name = "decoded_" + field.name + "_matches";
+    const std::string enum_type_name = generated_enum_type_name(type);
+
+    write_line(out, indent_level, "std::string_view " + decoded_name + ";");
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression +
+                   ".get_string().get(" + decoded_name + ");");
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::expected_string;");
+    generate_field_error_path(out, field, indent_level + 1);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
+
+    write_line(out, indent_level, "bool " + matched_name + " = false;");
+    for (const auto& enumerator : enum_model.enumerators) {
+        write_line(out, indent_level,
+                   "if (" + decoded_name + " == \"" + enumerator + "\") {");
+        write_line(out, indent_level + 1,
+                   target_expression + " = " + enum_type_name +
+                       "::" + enumerator + ";");
+        write_line(out, indent_level + 1, matched_name + " = true;");
+        write_line(out, indent_level, "}");
+    }
+    write_line(out, indent_level, "if (!" + matched_name + ") {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::invalid_enum_string;");
+    generate_field_error_path(out, field, indent_level + 1);
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
+}
+
 // Generate one supported scalar value decoder.
 void generate_scalar_value_decode(std::ostringstream& out,
                                   const metadata::FieldModel& field,
                                   const metadata::FieldType& type,
+                                  const std::vector<metadata::EnumModel>& enums,
                                   const std::string& simdjson_value_expression,
                                   const std::string& target_expression,
                                   std::size_t indent_level) {
@@ -394,8 +477,17 @@ void generate_scalar_value_decode(std::ostringstream& out,
                                       simdjson_value_expression,
                                       target_expression, indent_level);
         return;
+    case metadata::FieldTypeKind::Enum: {
+        const auto* enum_model = find_enum_model(enums, type);
+        if (enum_model == nullptr) {
+            return;
+        }
+        generate_enum_value_decode(out, field, type, *enum_model,
+                                   simdjson_value_expression, target_expression,
+                                   indent_level);
+        return;
+    }
     case metadata::FieldTypeKind::FloatingPoint:
-    case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
@@ -406,10 +498,11 @@ void generate_scalar_value_decode(std::ostringstream& out,
 }
 
 // Generate one required scalar field decoder.
-void generate_scalar_field_decode(std::ostringstream& out,
-                                  const metadata::FieldModel& field) {
+void generate_scalar_field_decode(
+    std::ostringstream& out, const metadata::FieldModel& field,
+    const std::vector<metadata::EnumModel>& enums) {
     write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
-    generate_scalar_value_decode(out, field, field.type, "field.value()",
+    generate_scalar_value_decode(out, field, field.type, enums, "field.value()",
                                  "value." + field.name, 3);
     write_line(out, 3, "has_" + field.name + " = true;");
     write_line(out, 3, "continue;");
@@ -417,8 +510,9 @@ void generate_scalar_field_decode(std::ostringstream& out,
 }
 
 // Generate one optional scalar field decoder.
-void generate_optional_field_decode(std::ostringstream& out,
-                                    const metadata::FieldModel& field) {
+void generate_optional_field_decode(
+    std::ostringstream& out, const metadata::FieldModel& field,
+    const std::vector<metadata::EnumModel>& enums) {
     const auto& inner_type = field.type.arguments[0];
 
     const std::string decoded_name = "decoded_" + field.name;
@@ -433,7 +527,7 @@ void generate_optional_field_decode(std::ostringstream& out,
     write_line(out, 3,
                optional_inner_type_name(inner_type) + " " + target_name +
                    "{};");
-    generate_scalar_value_decode(out, field, inner_type, "field.value()",
+    generate_scalar_value_decode(out, field, inner_type, enums, "field.value()",
                                  target_name, 3);
 
     write_line(out, 3, "value." + field.name + " = " + target_name + ";");
@@ -470,21 +564,22 @@ void generate_user_defined_field_decode(std::ostringstream& out,
 
 // Generate one supported field decoder.
 void generate_field_decode(std::ostringstream& out,
-                           const metadata::FieldModel& field) {
+                           const metadata::FieldModel& field,
+                           const std::vector<metadata::EnumModel>& enums) {
     switch (field.type.kind) {
     case metadata::FieldTypeKind::Bool:
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
     case metadata::FieldTypeKind::String:
-        generate_scalar_field_decode(out, field);
+    case metadata::FieldTypeKind::Enum:
+        generate_scalar_field_decode(out, field, enums);
         return;
     case metadata::FieldTypeKind::FloatingPoint:
-    case metadata::FieldTypeKind::Enum:
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
-        generate_optional_field_decode(out, field);
+        generate_optional_field_decode(out, field, enums);
         return;
     case metadata::FieldTypeKind::UserDefined:
         generate_user_defined_field_decode(out, field);
@@ -493,8 +588,9 @@ void generate_field_decode(std::ostringstream& out,
 }
 
 // Generate the internal object decoder for one model.
-void generate_object_decode_function(std::ostringstream& out,
-                                     const metadata::TypeModel& type) {
+void generate_object_decode_function(
+    std::ostringstream& out, const metadata::TypeModel& type,
+    const std::vector<metadata::EnumModel>& enums) {
     const auto cpp_type = generated_type_name(type);
     // 1. Open namespace cjm::simdjson::detail.
     write_line(out, 0, "namespace cjm::simdjson::detail {");
@@ -532,7 +628,7 @@ void generate_object_decode_function(std::ostringstream& out,
         if (field.json.ignored) {
             continue;
         }
-        generate_field_decode(out, field);
+        generate_field_decode(out, field, enums);
     }
 
     out << "    }\n"
@@ -624,7 +720,7 @@ std::string validate_project(const metadata::ProjectModel& project) {
     for (const auto& type : project.types) {
         for (const auto& field : type.fields) {
             const auto unsupported =
-                unsupported_capability_for_field(type, field);
+                unsupported_capability_for_field(type, field, project.enums);
             if (unsupported.has_value()) {
                 return format_unsupported_capability(*unsupported);
             }
@@ -662,7 +758,7 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
 
     for (const auto& type : project.types) {
         header << "\n";
-        generate_object_decode_function(header, type);
+        generate_object_decode_function(header, type, project.enums);
         header << "\n";
         generate_root_decode_function(header, type);
     }

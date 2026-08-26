@@ -27,6 +27,7 @@ enum class DecodeErrorCode {
     expected_string,
     expected_integer,
     expected_unsigned_integer,
+    invalid_enum_string,
     integer_overflow,
     missing_required_field
 };

@@ -72,6 +72,15 @@ if (CJM_ENABLE_SIMDJSON)
   add_test(NAME cjm_simdjson_string_generated_compile_tests
            COMMAND cjm_simdjson_string_generated_compile_tests)
 
+  add_executable(cjm_simdjson_enum_generated_compile_tests
+    ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/enum_generated_compile_tests.cpp
+  )
+  target_compile_features(cjm_simdjson_enum_generated_compile_tests PRIVATE cxx_std_17)
+  target_include_directories(cjm_simdjson_enum_generated_compile_tests PRIVATE ${PROJECT_SOURCE_DIR})
+  target_link_libraries(cjm_simdjson_enum_generated_compile_tests PRIVATE simdjson::simdjson)
+  add_test(NAME cjm_simdjson_enum_generated_compile_tests
+           COMMAND cjm_simdjson_enum_generated_compile_tests)
+
   add_executable(cjm_simdjson_optional_integer_generated_compile_tests
     ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/optional_integer_generated_compile_tests.cpp
   )

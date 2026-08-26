@@ -62,12 +62,12 @@ namespace cjm::simdjson::detail {
 
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
-    ::BoolValues& value,
+    ::EnumValues& value,
     DecodeError& error) {
     ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
 
     // 1. Track required fields for this object.
-    bool has_enabled = false;
+    bool has_status = false;
 
     // 2. Visit each JSON field once.
     for (auto field : object) {
@@ -79,25 +79,41 @@ inline bool decode_object(
             return false;
         }
 
-        if (key == "enabled") {
-            runtime_error = field.value().get_bool().get(value.enabled);
+        if (key == "status") {
+            std::string_view decoded_status_view;
+            runtime_error = field.value().get_string().get(decoded_status_view);
             if (runtime_error) {
-                error.code = DecodeErrorCode::expected_bool;
+                error.code = DecodeErrorCode::expected_string;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "enabled", 0});
+                    {DecodePathSegmentKind::field, "status", 0});
                 error.runtime_error = runtime_error;
                 return false;
             }
-            has_enabled = true;
+            bool decoded_status_matches = false;
+            if (decoded_status_view == "Active") {
+                value.status = ::Status::Active;
+                decoded_status_matches = true;
+            }
+            if (decoded_status_view == "Disabled") {
+                value.status = ::Status::Disabled;
+                decoded_status_matches = true;
+            }
+            if (!decoded_status_matches) {
+                error.code = DecodeErrorCode::invalid_enum_string;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "status", 0});
+                return false;
+            }
+            has_status = true;
             continue;
         }
     }
 
     // 3. Verify that every required field was present.
-    if (!has_enabled) {
+    if (!has_status) {
         error.code = DecodeErrorCode::missing_required_field;
         error.path.push_back(
-            {DecodePathSegmentKind::field, "enabled", 0});
+            {DecodePathSegmentKind::field, "status", 0});
         return false;
     }
 
@@ -110,8 +126,8 @@ inline bool decode_object(
 namespace cjm::simdjson {
 
 template <>
-inline std::optional<::BoolValues>
-from_json<::BoolValues>(
+inline std::optional<::EnumValues>
+from_json<::EnumValues>(
     std::string_view input,
     DecodeError& error) {
     // 1. Prepare the padded input owned for this decode.
@@ -138,7 +154,7 @@ from_json<::BoolValues>(
         return std::nullopt;
     }
     // 3. Decode the root object into a new value.
-    ::BoolValues value{};
+    ::EnumValues value{};
     if (!detail::decode_object(object, value, error)) {
         return std::nullopt;
     }
