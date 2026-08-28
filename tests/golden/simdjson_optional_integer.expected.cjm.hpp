@@ -23,6 +23,7 @@ enum class DecodeErrorCode {
     syntax_error,
     trailing_content,
     expected_object,
+    expected_array,
     expected_bool,
     expected_string,
     expected_integer,

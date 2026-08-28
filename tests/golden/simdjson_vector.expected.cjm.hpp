@@ -63,12 +63,12 @@ namespace cjm::simdjson::detail {
 
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
-    ::BoolValues& value,
+    ::VectorValues& value,
     DecodeError& error) {
     ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
 
     // 1. Track required fields for this object.
-    bool has_enabled = false;
+    bool has_tags = false;
 
     // 2. Visit each JSON field once.
     for (auto field : object) {
@@ -80,25 +80,46 @@ inline bool decode_object(
             return false;
         }
 
-        if (key == "enabled") {
-            runtime_error = field.value().get_bool().get(value.enabled);
+        if (key == "tags") {
+            ::simdjson::ondemand::array decoded_tags_array;
+            runtime_error = field.value().get_array().get(decoded_tags_array);
             if (runtime_error) {
-                error.code = DecodeErrorCode::expected_bool;
+                error.code = DecodeErrorCode::expected_array;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "enabled", 0});
+                    {DecodePathSegmentKind::field, "tags", 0});
                 error.runtime_error = runtime_error;
                 return false;
             }
-            has_enabled = true;
+
+            value.tags.clear();
+            std::size_t decoded_tags_index = 0;
+            for (auto decoded_tags_element : decoded_tags_array) {
+                std::string decoded_tags_value{};
+                std::string_view decoded_tags_view;
+                runtime_error = decoded_tags_element.get_string().get(decoded_tags_view);
+                if (runtime_error) {
+                    error.code = DecodeErrorCode::expected_string;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "tags", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_tags_index});
+                    error.runtime_error = runtime_error;
+                    return false;
+                }
+                decoded_tags_value.assign(decoded_tags_view.begin(), decoded_tags_view.end());
+                value.tags.push_back(decoded_tags_value);
+                ++decoded_tags_index;
+            }
+            has_tags = true;
             continue;
         }
     }
 
     // 3. Verify that every required field was present.
-    if (!has_enabled) {
+    if (!has_tags) {
         error.code = DecodeErrorCode::missing_required_field;
         error.path.push_back(
-            {DecodePathSegmentKind::field, "enabled", 0});
+            {DecodePathSegmentKind::field, "tags", 0});
         return false;
     }
 
@@ -111,8 +132,8 @@ inline bool decode_object(
 namespace cjm::simdjson {
 
 template <>
-inline std::optional<::BoolValues>
-from_json<::BoolValues>(
+inline std::optional<::VectorValues>
+from_json<::VectorValues>(
     std::string_view input,
     DecodeError& error) {
     // 1. Prepare the padded input owned for this decode.
@@ -139,7 +160,7 @@ from_json<::BoolValues>(
         return std::nullopt;
     }
     // 3. Decode the root object into a new value.
-    ::BoolValues value{};
+    ::VectorValues value{};
     if (!detail::decode_object(object, value, error)) {
         return std::nullopt;
     }

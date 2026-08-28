@@ -94,6 +94,12 @@ bool is_supported_optional_field(
     return false;
 }
 
+bool is_supported_vector_field(const metadata::FieldType& type) {
+    return type.kind == metadata::FieldTypeKind::Vector &&
+           type.arguments.size() == 1 &&
+           type.arguments[0].kind == metadata::FieldTypeKind::String;
+}
+
 // Return whether a user-defined field has a complete generated decoder.
 bool is_supported_user_defined_field(const metadata::FieldType& type) {
     return type.kind == metadata::FieldTypeKind::UserDefined &&
@@ -131,7 +137,7 @@ bool is_supported_scalar_type(const metadata::FieldType& type,
 
 // Return the backend capability failure for one field, when supported.
 std::optional<UnsupportedCapability> unsupported_capability_for_field(
-    const metadata::TypeModel& type, const metadata::FieldModel& field,
+    const metadata::TypeModel& parent_type, const metadata::FieldModel& field,
     const std::vector<metadata::EnumModel>& enums) {
     if (field.json.ignored) {
         return std::nullopt;
@@ -139,6 +145,7 @@ std::optional<UnsupportedCapability> unsupported_capability_for_field(
 
     if (is_supported_scalar_type(field.type, enums) ||
         is_supported_optional_field(field.type, enums) ||
+        is_supported_vector_field(field.type) ||
         is_supported_user_defined_field(field.type)) {
         return std::nullopt;
     }
@@ -174,8 +181,8 @@ std::optional<UnsupportedCapability> unsupported_capability_for_field(
     }
 
     return UnsupportedCapability{
-        generated_model_name(type),     field.name, field.json.name,
-        metadata_type_name(field.type), reason,
+        generated_model_name(parent_type), field.name, field.json.name,
+        metadata_type_name(field.type),    reason,
     };
 }
 
@@ -249,6 +256,7 @@ void generate_decode_error_model(std::ostringstream& out) {
         << "    syntax_error,\n"
         << "    trailing_content,\n"
         << "    expected_object,\n"
+        << "    expected_array,\n"
         << "    expected_bool,\n"
         << "    expected_string,\n"
         << "    expected_integer,\n"
@@ -295,6 +303,15 @@ void generate_field_error_path(std::ostringstream& out,
     write_line(out, indent_level + 1,
                "{DecodePathSegmentKind::field, \"" + field.json.name +
                    "\", 0});");
+}
+
+void generate_index_error_path(std::ostringstream& out,
+                               const std::string& index_expression,
+                               std::size_t indent_level) {
+    write_line(out, indent_level, "error.path.push_back(");
+    write_line(out, indent_level + 1,
+               "{DecodePathSegmentKind::index, \"\", " + index_expression +
+                   "});");
 }
 
 // Generate one structured field path prepend.
@@ -535,6 +552,55 @@ void generate_optional_field_decode(
     write_line(out, 2, "}");
 }
 
+void generate_vector_string_field_decode(std::ostringstream& out,
+                                         const metadata::FieldModel& field) {
+    const std::string member_name = "value." + field.name;
+    const std::string array_name = "decoded_" + field.name + "_array";
+    const std::string index_name = "decoded_" + field.name + "_index";
+    const std::string element_name = "decoded_" + field.name + "_element";
+    const std::string value_name = "decoded_" + field.name + "_value";
+    const std::string view_name = "decoded_" + field.name + "_view";
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    write_line(out, 3, "::simdjson::ondemand::array " + array_name + ";");
+    write_line(out, 3,
+               "runtime_error = field.value().get_array().get(" + array_name +
+                   ");");
+    write_line(out, 3, "if (runtime_error) {");
+    write_line(out, 4, "error.code = DecodeErrorCode::expected_array;");
+    generate_field_error_path(out, field, 4);
+    write_line(out, 4, "error.runtime_error = runtime_error;");
+    write_line(out, 4, "return false;");
+    write_line(out, 3, "}");
+    write_line(out, 0, "");
+
+    write_line(out, 3, member_name + ".clear();");
+    write_line(out, 3, "std::size_t " + index_name + " = 0;");
+    write_line(out, 3,
+               "for (auto " + element_name + " : " + array_name + ") {");
+    write_line(out, 4, "std::string " + value_name + "{};");
+    write_line(out, 4, "std::string_view " + view_name + ";");
+    write_line(out, 4,
+               "runtime_error = " + element_name + ".get_string().get(" +
+                   view_name + ");");
+    write_line(out, 4, "if (runtime_error) {");
+    write_line(out, 5, "error.code = DecodeErrorCode::expected_string;");
+    generate_field_error_path(out, field, 5);
+    generate_index_error_path(out, index_name, 5);
+    write_line(out, 5, "error.runtime_error = runtime_error;");
+    write_line(out, 5, "return false;");
+    write_line(out, 4, "}");
+    write_line(out, 4,
+               value_name + ".assign(" + view_name + ".begin(), " + view_name +
+                   ".end());");
+    write_line(out, 4, member_name + ".push_back(" + value_name + ");");
+    write_line(out, 4, "++" + index_name + ";");
+    write_line(out, 3, "}");
+    write_line(out, 3, "has_" + field.name + " = true;");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
 // Generate one required nested object field decoder.
 void generate_user_defined_field_decode(std::ostringstream& out,
                                         const metadata::FieldModel& field) {
@@ -574,9 +640,11 @@ void generate_field_decode(std::ostringstream& out,
     case metadata::FieldTypeKind::Enum:
         generate_scalar_field_decode(out, field, enums);
         return;
+    case metadata::FieldTypeKind::Vector:
+        generate_vector_string_field_decode(out, field);
+        return;
     case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::Array:
-    case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
         generate_optional_field_decode(out, field, enums);

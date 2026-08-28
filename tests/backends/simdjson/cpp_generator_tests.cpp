@@ -102,7 +102,7 @@ ProjectModel make_integer_project() {
     return project;
 }
 
-// Build a model containing one type unsupported by the initial spike.
+// Build a model containing a required vector of owned strings.
 ProjectModel make_vector_project() {
     auto vector_field = make_required_field("tags", FieldTypeKind::Vector,
                                             "std::vector<std::string>");
@@ -492,14 +492,25 @@ int main() {
     {
         const auto vector_result =
             cjm::generator::simdjson::generate_header(make_vector_project());
-        assert(!vector_result.success);
-        assert(vector_result.header.empty());
-
-        expect_unsupported_capability(vector_result, "VectorValues", "tags",
-                                      "tags", "std::vector<std::string>",
-                                      "vector decode is not implemented");
-        assert(vector_result.error.find("optional scalar fields") !=
+        assert(vector_result.success);
+        assert(vector_result.error.empty());
+        assert(vector_result.header.find("from_json<::VectorValues>(") !=
                std::string::npos);
+        assert(vector_result.header.find(
+                   "::simdjson::ondemand::array decoded_tags_array;") !=
+               std::string::npos);
+        assert(vector_result.header.find(
+                   "std::size_t decoded_tags_index = 0;") != std::string::npos);
+        assert(vector_result.header.find(
+                   "for (auto decoded_tags_element : decoded_tags_array)") !=
+               std::string::npos);
+        assert(vector_result.header.find(
+                   "value.tags.push_back(decoded_tags_value);") !=
+               std::string::npos);
+        assert(
+            vector_result.header.find(
+                "{DecodePathSegmentKind::index, \"\", decoded_tags_index}") !=
+            std::string::npos);
     }
     {
         const auto result = cjm::generator::simdjson::generate_header(
