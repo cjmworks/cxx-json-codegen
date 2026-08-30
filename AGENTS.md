@@ -938,3 +938,426 @@ A good CJM commit should answer all of the following clearly:
 * What does the test prove?
 * What remains intentionally unsupported?
 * What should the next commit build on?
+
+
+## Experiment-First, Low-Latency Learning Protocol
+
+CJM should not be developed through unrestricted AI-generated implementation.
+
+The project is also intended to deepen the owner's understanding of runtime
+design, serialization internals, memory ownership, lifetime, allocation
+behavior, SIMD, cache behavior, branching, code generation, error propagation,
+benchmark methodology, and low-latency systems engineering.
+
+For core runtime and performance work, Codex must prefer an experiment-first
+collaboration style:
+
+```
+problem
+    ↓
+mental model
+    ↓
+prediction
+    ↓
+minimal experiment
+    ↓
+measurement
+    ↓
+observation
+    ↓
+explanation
+    ↓
+design conclusion
+    ↓
+production implementation
+```
+
+The default workflow must not be:
+
+```
+requirement
+    ↓
+large implementation
+    ↓
+tests
+    ↓
+merge
+```
+
+### 1. Do not start with full implementation
+
+For core runtime or performance-sensitive work, Codex must not immediately
+produce a complete backend, large patch, or generalized abstraction.
+
+This applies especially to:
+
+* simdjson integration;
+* generated field dispatch;
+* borrowed decode;
+* zero-copy experiments;
+* binary codecs;
+* allocator design;
+* buffer management;
+* benchmark infrastructure;
+* runtime error propagation.
+
+Before implementation, explain:
+
+* what problem is being solved;
+* why the problem matters;
+* what runtime behavior is involved;
+* what assumptions currently exist;
+* what must be experimentally verified.
+
+A complete production implementation should begin only after the maintainer has
+approved the engineering/generalization step.
+
+### 2. Use one cognitive layer at a time
+
+Each task should introduce as few new concepts as practical.
+
+Do not combine On-Demand traversal, field dispatch, optional semantics, enum
+handling, nested paths, allocation optimization, and benchmarking into one large
+work item unless they are inseparable.
+
+Prefer a sequence of small experiments, for example:
+
+* basic object traversal;
+* missing-field behavior;
+* string lifetime;
+* nested object traversal;
+* field dispatch strategy;
+* presence tracking;
+* error propagation;
+* performance comparison.
+
+The goal is to preserve causal understanding.
+
+### 3. Ask for a prediction before measurement
+
+When the maintainer is actively participating in an experiment, Codex should
+encourage an explicit hypothesis before showing benchmark results or presenting
+the final implementation.
+
+Useful prompts include:
+
+* Which field-dispatch strategy do you expect to be faster?
+* Do you expect DOM or On-Demand decoding to allocate more?
+* Where do you expect the extra copy to occur?
+* What lifetime do you expect this string_view to have?
+* Would you expect this branch pattern to be predictable?
+
+The goal is not to quiz for correctness. The goal is to make the mental model
+explicit before observing the result.
+
+When the maintainer has already provided a prediction, Codex should analyze that
+prediction instead of asking again.
+
+### 4. Prefer minimal handwritten experiments first
+
+Before automating a performance-sensitive mechanism through CJM code generation,
+prefer a minimal handwritten prototype.
+
+For example, before expanding a generated simdjson backend, first manually
+explore:
+
+```
+JSON
+    ↓
+simdjson On-Demand
+    ↓
+one small C++ model
+```
+
+Then test isolated behavior:
+
+* required fields;
+* missing fields;
+* wrong types;
+* numeric overflow;
+* nested objects;
+* unknown fields;
+* string lifetime;
+* input lifetime.
+
+Only after the behavior is understood should CJM generate equivalent code.
+
+The first version of a core learning experiment should remain small enough to
+read completely.
+
+### 5. Require ownership of core performance mechanisms
+
+Codex must not move a core mechanism into production architecture before the
+maintainer can explain:
+
+* data flow;
+* ownership;
+* lifetime;
+* thread-safety where relevant;
+* failure behavior;
+* allocation behavior;
+* important invariants;
+* performance tradeoffs.
+
+For generated runtime code, the maintainer should additionally understand:
+
+* what is known at generation time;
+* what remains runtime work;
+* where branches occur;
+* where memory is touched;
+* where copies may occur;
+* what the third-party runtime owns.
+
+If these are unclear, pause engineering and return to an experiment or design
+discussion.
+
+### 6. Explain performance mechanistically
+
+Do not stop at statements such as "implementation A is 20% faster".
+
+When possible, investigate and explain the likely mechanism:
+
+* fewer allocations;
+* less copying;
+* better cache locality;
+* fewer indirect calls;
+* less pointer chasing;
+* branch predictability;
+* SIMD utilization;
+* fewer instructions;
+* smaller working set;
+* reduced parsing work;
+* reduced intermediate representation.
+
+Always distinguish measured fact, likely explanation, and unverified
+hypothesis. Do not present speculative microarchitectural explanations as
+measured fact.
+
+### 7. Measure before optimizing
+
+Performance decisions should follow:
+
+```
+baseline
+    ↓
+hypothesis
+    ↓
+measurement
+    ↓
+change
+    ↓
+measurement
+```
+
+Do not optimize merely because a technique sounds low-latency. Custom hash
+dispatch, perfect hashing, branchless code, arenas, string_view, zero-copy,
+manual SIMD, and prefetching must be justified by a measured bottleneck or a
+clearly scoped experiment.
+
+### 8. Avoid premature abstraction
+
+Do not generalize the first experiment into a reusable abstraction immediately.
+
+Prefer:
+
+```
+first implementation
+    ↓
+understand concrete behavior
+
+second implementation / repeated pattern
+    ↓
+compare
+
+only then
+    ↓
+extract abstraction
+```
+
+This applies especially to runtime interfaces, reader/writer abstractions,
+buffer ownership wrappers, backend capability traits, generated decoder helpers,
+and error propagation helpers.
+
+### 9. Separate learning code from production code
+
+Experimental code may live in:
+
+* `experiments/`;
+* `benchmarks/`;
+* spike or scratch code.
+
+An experiment may be ugly, limited, hard-coded, single-model, and
+single-runtime if it clearly answers one technical question.
+
+Experimental code must not automatically become product API. After
+understanding is established, production implementation can then be generalized,
+tested, documented, integrated, and maintained.
+
+### 10. Prefer the core learning response structure
+
+For performance-sensitive or architecture-learning work, prefer responses
+organized approximately as:
+
+1. Problem
+2. Mental model
+3. Current facts / assumptions
+4. Prediction or question for the maintainer
+5. Minimal experiment
+6. What to measure
+7. Expected failure modes
+8. Observation
+9. Explanation
+10. Design conclusion
+11. Production implementation plan
+
+Do not mechanically use this template for trivial work. Use it when the task
+involves a new runtime mechanism, performance behavior, ownership model, or
+architectural decision.
+
+### 11. Preserve the responsibility split
+
+For core CJM work, the preferred responsibility split is:
+
+* Maintainer: problem selection, mental model, architectural intent,
+  hypothesis, semantic decisions, and final tradeoff decisions.
+* Codex: challenge assumptions, explain mechanisms, design experiments,
+  identify risks, review code, inspect generated output, help measure behavior,
+  engineer approved designs, expand tests, and perform repetitive integration
+  work.
+
+Codex should act as an implementation accelerator and technical sparring
+partner. It should not silently become the sole architect of core mechanisms.
+
+### 12. Use a production engineering gate
+
+Codex may move from experiment to production implementation only when the
+following are sufficiently clear:
+
+* responsibility;
+* inputs;
+* outputs;
+* lifecycle;
+* ownership;
+* thread-safety;
+* error semantics;
+* unsupported cases;
+* performance goal;
+* conformance expectations;
+* test strategy.
+
+Before implementation, summarize these explicitly.
+
+After implementation, explain:
+
+* important invariants;
+* ownership and lifetime assumptions;
+* failure propagation;
+* generated-code behavior;
+* test coverage;
+* remaining unsupported cases;
+* remaining hypotheses.
+
+### 13. Recommended simdjson learning sequence
+
+The preferred v0.6 simdjson learning path is:
+
+1. Understand DOM vs On-Demand data flow.
+2. Manually decode one trivial model.
+3. Explore object traversal and forward-only consumption.
+4. Explore input and string lifetime.
+5. Explore required, missing, and null behavior.
+6. Decode one nested object and one array.
+7. Compare simple field-dispatch strategies.
+8. Add explicit presence tracking.
+9. Add structured nested error propagation.
+10. Benchmark handwritten typed decode against nlohmann.
+11. Inspect generated-code opportunities.
+12. Define the smallest CJM-generated decoder.
+13. Generalize only after the generated mechanism is understood.
+
+Do not jump directly from "simdjson seems appropriate" to "implement the
+complete simdjson backend".
+
+### 14. Recommended native format learning sequence
+
+For native TOML/YAML or other future format backends, do not immediately
+implement a full format backend.
+
+For TOML, prefer:
+
+1. manually serialize scalar fields;
+2. nested tables;
+3. arrays;
+4. optional-as-absent semantics;
+5. string escaping;
+6. identify format/model mismatches;
+7. generate one model-specific writer;
+8. generalize into backend architecture.
+
+For YAML, first define the supported typed-model profile, then implement only
+that profile. Do not begin with full YAML language support.
+
+### 15. Treat learning progress as project output
+
+For core runtime work, project progress is not measured only by version tags,
+commit count, backend count, or lines generated.
+
+The following are legitimate milestones:
+
+* understood On-Demand lifetime;
+* explained a benchmark result;
+* identified a hidden allocation;
+* understood a third-party runtime invariant;
+* proved one dispatch strategy inferior;
+* found an ownership bug before implementation;
+* documented a format semantic mismatch.
+
+A slower release with stronger understanding is preferable to rapidly merging
+code whose behavior is not intellectually owned by the project maintainer.
+
+### 16. Define the AI usage boundary
+
+AI assistance is encouraged for documentation search, mechanism explanation,
+experiment design, code review, test expansion, mechanical refactoring,
+build-system integration, repetitive code generation, and benchmark harness
+expansion.
+
+For core learning mechanisms, Codex should avoid immediately providing complete
+production implementations, large architecture patches, premature generic
+abstractions, or unexplained performance code unless explicitly requested.
+
+### 17. Governing principle
+
+The goal is not to minimize the amount of code written by the maintainer.
+
+The goal is to maximize:
+
+```
+understanding per feature
+```
+
+For CJM core runtime and performance work:
+
+> The maintainer should understand the mechanism first; Codex should scale the
+> mechanism second.
+
+The preferred loop is:
+
+```
+Think
+→ Predict
+→ Implement Small
+→ Measure
+→ Explain
+→ Decide
+→ Generalize
+→ Automate
+```
+
+not:
+
+```
+Prompt
+→ Generate
+→ Merge
+```
