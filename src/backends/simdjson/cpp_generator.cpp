@@ -94,12 +94,6 @@ bool is_supported_optional_field(
     return false;
 }
 
-bool is_supported_vector_field(const metadata::FieldType& type) {
-    return type.kind == metadata::FieldTypeKind::Vector &&
-           type.arguments.size() == 1 &&
-           type.arguments[0].kind == metadata::FieldTypeKind::String;
-}
-
 // Return whether a user-defined field has a complete generated decoder.
 bool is_supported_user_defined_field(const metadata::FieldType& type) {
     return type.kind == metadata::FieldTypeKind::UserDefined &&
@@ -135,6 +129,14 @@ bool is_supported_scalar_type(const metadata::FieldType& type,
     return is_supported_scalar_kind(type.kind);
 }
 
+// Return whether a vector field has a complete scalar element decoder.
+bool is_supported_vector_field(const metadata::FieldType& type,
+                               const std::vector<metadata::EnumModel>& enums) {
+    return type.kind == metadata::FieldTypeKind::Vector &&
+           type.arguments.size() == 1 &&
+           is_supported_scalar_type(type.arguments[0], enums);
+}
+
 // Return the backend capability failure for one field, when supported.
 std::optional<UnsupportedCapability> unsupported_capability_for_field(
     const metadata::TypeModel& parent_type, const metadata::FieldModel& field,
@@ -145,7 +147,7 @@ std::optional<UnsupportedCapability> unsupported_capability_for_field(
 
     if (is_supported_scalar_type(field.type, enums) ||
         is_supported_optional_field(field.type, enums) ||
-        is_supported_vector_field(field.type) ||
+        is_supported_vector_field(field.type, enums) ||
         is_supported_user_defined_field(field.type)) {
         return std::nullopt;
     }
@@ -563,9 +565,33 @@ void generate_optional_field_decode(
     write_line(out, 2, "}");
 }
 
-void generate_vector_string_field_decode(
+// Return the generated C++ type spelling for one scalar decoded value.
+std::string scalar_value_type_name(const metadata::FieldType& type) {
+    switch (type.kind) {
+    case metadata::FieldTypeKind::Bool:
+        return "bool";
+    case metadata::FieldTypeKind::String:
+        return "std::string";
+    case metadata::FieldTypeKind::Enum:
+        return generated_enum_type_name(type);
+    case metadata::FieldTypeKind::SignedInteger:
+    case metadata::FieldTypeKind::UnsignedInteger:
+        return metadata_type_name(type);
+    case metadata::FieldTypeKind::FloatingPoint:
+    case metadata::FieldTypeKind::Array:
+    case metadata::FieldTypeKind::Vector:
+    case metadata::FieldTypeKind::Map:
+    case metadata::FieldTypeKind::Optional:
+    case metadata::FieldTypeKind::UserDefined:
+        return metadata_type_name(type);
+    }
+    return metadata_type_name(type);
+}
+
+void generate_vector_scalar_field_decode(
     std::ostringstream& out, const metadata::FieldModel& field,
     const std::vector<metadata::EnumModel>& enums) {
+    const auto& element_type = field.type.arguments[0];
     const std::string member_name = "value." + field.name;
     const std::string array_name = "decoded_" + field.name + "_array";
     const std::string index_name = "decoded_" + field.name + "_index";
@@ -589,10 +615,11 @@ void generate_vector_string_field_decode(
     write_line(out, 3, "std::size_t " + index_name + " = 0;");
     write_line(out, 3,
                "for (auto " + element_name + " : " + array_name + ") {");
-    write_line(out, 4, "std::string " + value_name + "{};");
+    write_line(out, 4,
+               scalar_value_type_name(element_type) + " " + value_name + "{};");
 
-    generate_scalar_value_decode(out, field, field.type.arguments[0], enums,
-                                 element_name, value_name, 4, index_name);
+    generate_scalar_value_decode(out, field, element_type, enums, element_name,
+                                 value_name, 4, index_name);
 
     write_line(out, 4, member_name + ".push_back(" + value_name + ");");
     write_line(out, 4, "++" + index_name + ";");
@@ -642,7 +669,7 @@ void generate_field_decode(std::ostringstream& out,
         generate_scalar_field_decode(out, field, enums);
         return;
     case metadata::FieldTypeKind::Vector:
-        generate_vector_string_field_decode(out, field, enums);
+        generate_vector_scalar_field_decode(out, field, enums);
         return;
     case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::Array:

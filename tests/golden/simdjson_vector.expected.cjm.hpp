@@ -69,6 +69,10 @@ inline bool decode_object(
 
     // 1. Track required fields for this object.
     bool has_tags = false;
+    bool has_flags = false;
+    bool has_scores = false;
+    bool has_limits = false;
+    bool has_statuses = false;
 
     // 2. Visit each JSON field once.
     for (auto field : object) {
@@ -113,6 +117,180 @@ inline bool decode_object(
             has_tags = true;
             continue;
         }
+        if (key == "flags") {
+            ::simdjson::ondemand::array decoded_flags_array;
+            runtime_error = field.value().get_array().get(decoded_flags_array);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_array;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "flags", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+
+            value.flags.clear();
+            std::size_t decoded_flags_index = 0;
+            for (auto decoded_flags_element : decoded_flags_array) {
+                bool decoded_flags_value{};
+                runtime_error = decoded_flags_element.get_bool().get(decoded_flags_value);
+                if (runtime_error) {
+                    error.code = DecodeErrorCode::expected_bool;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "flags", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_flags_index});
+                    error.runtime_error = runtime_error;
+                    return false;
+                }
+                value.flags.push_back(decoded_flags_value);
+                ++decoded_flags_index;
+            }
+            has_flags = true;
+            continue;
+        }
+        if (key == "scores") {
+            ::simdjson::ondemand::array decoded_scores_array;
+            runtime_error = field.value().get_array().get(decoded_scores_array);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_array;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "scores", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+
+            value.scores.clear();
+            std::size_t decoded_scores_index = 0;
+            for (auto decoded_scores_element : decoded_scores_array) {
+                std::int32_t decoded_scores_value{};
+                using target_type = decltype(decoded_scores_value);
+                std::int64_t decoded_scores = 0;
+                runtime_error = decoded_scores_element.get_int64().get(decoded_scores);
+                if (runtime_error) {
+                    error.code = DecodeErrorCode::expected_integer;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "scores", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_scores_index});
+                    error.runtime_error = runtime_error;
+                    return false;
+                }
+
+                const auto target_min = static_cast<std::int64_t>(
+                    (std::numeric_limits<target_type>::min)());
+                const auto target_max = static_cast<std::int64_t>(
+                    (std::numeric_limits<target_type>::max)());
+                if (decoded_scores < target_min || decoded_scores > target_max) {
+                    error.code = DecodeErrorCode::integer_overflow;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "scores", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_scores_index});
+                    return false;
+                }
+
+                decoded_scores_value = static_cast<target_type>(decoded_scores);
+                value.scores.push_back(decoded_scores_value);
+                ++decoded_scores_index;
+            }
+            has_scores = true;
+            continue;
+        }
+        if (key == "limits") {
+            ::simdjson::ondemand::array decoded_limits_array;
+            runtime_error = field.value().get_array().get(decoded_limits_array);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_array;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "limits", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+
+            value.limits.clear();
+            std::size_t decoded_limits_index = 0;
+            for (auto decoded_limits_element : decoded_limits_array) {
+                std::uint32_t decoded_limits_value{};
+                using target_type = decltype(decoded_limits_value);
+                std::uint64_t decoded_limits = 0;
+                runtime_error = decoded_limits_element.get_uint64().get(decoded_limits);
+                if (runtime_error) {
+                    error.code = DecodeErrorCode::expected_unsigned_integer;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "limits", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_limits_index});
+                    error.runtime_error = runtime_error;
+                    return false;
+                }
+
+                const auto target_max = static_cast<std::uint64_t>(
+                    (std::numeric_limits<target_type>::max)());
+                if (decoded_limits > target_max) {
+                    error.code = DecodeErrorCode::integer_overflow;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "limits", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_limits_index});
+                    return false;
+                }
+
+                decoded_limits_value = static_cast<target_type>(decoded_limits);
+                value.limits.push_back(decoded_limits_value);
+                ++decoded_limits_index;
+            }
+            has_limits = true;
+            continue;
+        }
+        if (key == "statuses") {
+            ::simdjson::ondemand::array decoded_statuses_array;
+            runtime_error = field.value().get_array().get(decoded_statuses_array);
+            if (runtime_error) {
+                error.code = DecodeErrorCode::expected_array;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "statuses", 0});
+                error.runtime_error = runtime_error;
+                return false;
+            }
+
+            value.statuses.clear();
+            std::size_t decoded_statuses_index = 0;
+            for (auto decoded_statuses_element : decoded_statuses_array) {
+                ::Status decoded_statuses_value{};
+                std::string_view decoded_statuses_view;
+                runtime_error = decoded_statuses_element.get_string().get(decoded_statuses_view);
+                if (runtime_error) {
+                    error.code = DecodeErrorCode::expected_string;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "statuses", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_statuses_index});
+                    error.runtime_error = runtime_error;
+                    return false;
+                }
+                bool decoded_statuses_matches = false;
+                if (decoded_statuses_view == "Active") {
+                    decoded_statuses_value = ::Status::Active;
+                    decoded_statuses_matches = true;
+                }
+                if (decoded_statuses_view == "Disabled") {
+                    decoded_statuses_value = ::Status::Disabled;
+                    decoded_statuses_matches = true;
+                }
+                if (!decoded_statuses_matches) {
+                    error.code = DecodeErrorCode::invalid_enum_string;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "statuses", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_statuses_index});
+                    return false;
+                }
+                value.statuses.push_back(decoded_statuses_value);
+                ++decoded_statuses_index;
+            }
+            has_statuses = true;
+            continue;
+        }
     }
 
     // 3. Verify that every required field was present.
@@ -120,6 +298,30 @@ inline bool decode_object(
         error.code = DecodeErrorCode::missing_required_field;
         error.path.push_back(
             {DecodePathSegmentKind::field, "tags", 0});
+        return false;
+    }
+    if (!has_flags) {
+        error.code = DecodeErrorCode::missing_required_field;
+        error.path.push_back(
+            {DecodePathSegmentKind::field, "flags", 0});
+        return false;
+    }
+    if (!has_scores) {
+        error.code = DecodeErrorCode::missing_required_field;
+        error.path.push_back(
+            {DecodePathSegmentKind::field, "scores", 0});
+        return false;
+    }
+    if (!has_limits) {
+        error.code = DecodeErrorCode::missing_required_field;
+        error.path.push_back(
+            {DecodePathSegmentKind::field, "limits", 0});
+        return false;
+    }
+    if (!has_statuses) {
+        error.code = DecodeErrorCode::missing_required_field;
+        error.path.push_back(
+            {DecodePathSegmentKind::field, "statuses", 0});
         return false;
     }
 

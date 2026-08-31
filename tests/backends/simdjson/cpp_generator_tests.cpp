@@ -104,10 +104,10 @@ ProjectModel make_integer_project() {
 
 // Build a model containing a required vector of owned strings.
 ProjectModel make_vector_project() {
-    auto vector_field = make_required_field("tags", FieldTypeKind::Vector,
-                                            "std::vector<std::string>");
-    vector_field.type.qualified_name = "std::vector";
-    vector_field.type.arguments = {
+    auto tags_field = make_required_field("tags", FieldTypeKind::Vector,
+                                          "std::vector<std::string>");
+    tags_field.type.qualified_name = "std::vector";
+    tags_field.type.arguments = {
         FieldType{
             FieldTypeKind::String,
             "std::string",
@@ -115,13 +115,63 @@ ProjectModel make_vector_project() {
         },
     };
 
+    auto flags_field = make_required_field("flags", FieldTypeKind::Vector,
+                                           "std::vector<bool>");
+    flags_field.type.qualified_name = "std::vector";
+    flags_field.type.arguments = {
+        FieldType{
+            FieldTypeKind::Bool,
+            "bool",
+            "bool",
+        },
+    };
+
+    auto scores_field = make_required_field("scores", FieldTypeKind::Vector,
+                                            "std::vector<std::int32_t>");
+    scores_field.type.qualified_name = "std::vector";
+    scores_field.type.arguments = {
+        FieldType{
+            FieldTypeKind::SignedInteger,
+            "std::int32_t",
+            "std::int32_t",
+        },
+    };
+    auto limits_field = make_required_field("limits", FieldTypeKind::Vector,
+                                            "std::vector<std::uint32_t>");
+    limits_field.type.qualified_name = "std::vector";
+    limits_field.type.arguments = {
+        FieldType{
+            FieldTypeKind::UnsignedInteger,
+            "std::uint32_t",
+            "std::uint32_t",
+        },
+    };
+
+    auto statuses_field = make_required_field("statuses", FieldTypeKind::Vector,
+                                              "std::vector<Status>");
+    statuses_field.type.qualified_name = "std::vector";
+    statuses_field.type.arguments = {
+        FieldType{
+            FieldTypeKind::Enum,
+            "Status",
+            "Status",
+        },
+    };
+
     TypeModel type;
     type.name = "VectorValues";
     type.qualified_name = "VectorValues";
-    type.fields = {vector_field};
+    type.fields = {tags_field, flags_field, scores_field, limits_field,
+                   statuses_field};
+
+    cjm::metadata::EnumModel status;
+    status.name = "Status";
+    status.qualified_name = "Status";
+    status.enumerators = {"Active", "Disabled"};
 
     ProjectModel project;
     project.types = {type};
+    project.enums = {status};
     return project;
 }
 
@@ -511,6 +561,56 @@ int main() {
             vector_result.header.find(
                 "{DecodePathSegmentKind::index, \"\", decoded_tags_index}") !=
             std::string::npos);
+
+        assert(vector_result.header.find("bool decoded_flags_value{};") !=
+               std::string::npos);
+        assert(
+            vector_result.header.find(
+                "decoded_flags_element.get_bool().get(decoded_flags_value)") !=
+            std::string::npos);
+        assert(vector_result.header.find(
+                   "value.flags.push_back(decoded_flags_value);") !=
+               std::string::npos);
+
+        assert(
+            vector_result.header.find("std::int32_t decoded_scores_value{};") !=
+            std::string::npos);
+        assert(vector_result.header.find(
+                   "decoded_scores_element.get_int64().get(decoded_scores)") !=
+               std::string::npos);
+        assert(vector_result.header.find(
+                   "value.scores.push_back(decoded_scores_value);") !=
+               std::string::npos);
+
+        assert(vector_result.header.find(
+                   "std::uint32_t decoded_limits_value{};") !=
+               std::string::npos);
+        assert(vector_result.header.find(
+                   "decoded_limits_element.get_uint64().get(decoded_limits)") !=
+               std::string::npos);
+
+        const auto vector_expected =
+            read_file("tests/golden/simdjson_vector.expected.cjm.hpp");
+        if (vector_result.header != vector_expected) {
+            std::cerr << "generated simdjson vector header: \n"
+                      << vector_result.header;
+        }
+        assert(vector_result.header == vector_expected);
+
+        assert(vector_result.header.find(
+                   "::Status decoded_statuses_value{};") != std::string::npos);
+        assert(vector_result.header.find("decoded_statuses_element.get_string()"
+                                         ".get(decoded_statuses_view)") !=
+               std::string::npos);
+        assert(vector_result.header.find(
+                   "decoded_statuses_view == \"Active\"") !=
+               std::string::npos);
+        assert(vector_result.header.find(
+                   "value.statuses.push_back(decoded_statuses_value);") !=
+               std::string::npos);
+        assert(vector_result.header.find("{DecodePathSegmentKind::index, \"\", "
+                                         "decoded_statuses_index}") !=
+               std::string::npos);
     }
     {
         const auto result = cjm::generator::simdjson::generate_header(
