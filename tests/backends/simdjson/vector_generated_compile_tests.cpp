@@ -154,6 +154,25 @@ int main() {
         assert(unsigned_overflow_error.runtime_error == simdjson::SUCCESS);
     }
     {
+        cjm::simdjson::DecodeError negative_unsigned_error;
+        const auto negative_unsigned_result = cjm::simdjson::from_json<
+            VectorValues>(
+            R"({"tags":["ok"], "flags":[true],"scores":[1], "limits":[1,-1]})",
+            negative_unsigned_error);
+        assert(!negative_unsigned_result.has_value());
+        assert(negative_unsigned_error.code ==
+               cjm::simdjson::DecodeErrorCode::expected_unsigned_integer);
+        assert(negative_unsigned_error.path.size() == 2);
+        assert(negative_unsigned_error.path[0].kind ==
+               cjm::simdjson::DecodePathSegmentKind::field);
+        assert(negative_unsigned_error.path[0].field_name == "limits");
+        assert(negative_unsigned_error.path[1].kind ==
+               cjm::simdjson::DecodePathSegmentKind::index);
+        assert(negative_unsigned_error.path[1].index == 1);
+        assert(negative_unsigned_error.runtime_error =
+                   simdjson::NUMBER_OUT_OF_RANGE);
+    }
+    {
         cjm::simdjson::DecodeError enum_type_error;
         const auto enum_type_result = cjm::simdjson::from_json<VectorValues>(
             R"({"tags":["ok"],"flags":[true],"scores":[1],"limits":[1],"statuses":["Active",123]})",
