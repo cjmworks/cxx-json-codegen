@@ -169,8 +169,8 @@ int main() {
         assert(negative_unsigned_error.path[1].kind ==
                cjm::simdjson::DecodePathSegmentKind::index);
         assert(negative_unsigned_error.path[1].index == 1);
-        assert(negative_unsigned_error.runtime_error =
-                   simdjson::NUMBER_OUT_OF_RANGE);
+        assert(negative_unsigned_error.runtime_error ==
+               simdjson::INCORRECT_TYPE);
     }
     {
         cjm::simdjson::DecodeError enum_type_error;
