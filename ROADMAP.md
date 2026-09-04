@@ -479,7 +479,7 @@ Completed:
 - downstream warning friction was fixed in CJM
 - README, release notes, dogfood report, issue templates, Discussions, and
   contributing guidance were updated for early adopters
-- cjm-labs.org messaging was updated for early-adopter outreach
+- cjmworks.org messaging was updated for early-adopter outreach
 - first outreach posts were published to LinkedIn and the r/cpp Show and Tell
   thread
 

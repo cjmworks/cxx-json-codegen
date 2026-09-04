@@ -95,10 +95,10 @@ I am looking for a few Modern C++ developers to try CJM on practical model
 headers and report parser, CMake, diagnostics, generated-code, or schema-output
 friction.
 
-GitHub: https://github.com/cjm-labs/cxx-json-codegen
-Release: https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
-Feedback thread: https://github.com/cjm-labs/cxx-json-codegen/discussions/163
-Dogfood report: https://github.com/cjm-labs/cxx-json-codegen/blob/main/docs/dogfood/ull-md-engine-v0.3.0.md
+GitHub: https://github.com/cjmworks/cxx-json-codegen
+Release: https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
+Feedback thread: https://github.com/cjmworks/cxx-json-codegen/discussions/163
+Dogfood report: https://github.com/cjmworks/cxx-json-codegen/blob/main/docs/dogfood/ull-md-engine-v0.3.0.md
 ````
 
 ## Reddit r/cpp Draft
@@ -162,13 +162,13 @@ most useful feedback right now is not stars, but real failure cases:
 - missing type mappings needed before v1.0
 
 Repo:
-https://github.com/cjm-labs/cxx-json-codegen
+https://github.com/cjmworks/cxx-json-codegen
 
 Release:
-https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
+https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
 
 Discussions:
-https://github.com/cjm-labs/cxx-json-codegen/discussions/163
+https://github.com/cjmworks/cxx-json-codegen/discussions/163
 
 If you maintain C++ code with model structs and JSON integration, I would love
 to hear where this approach works or fails for you.
@@ -186,9 +186,9 @@ v0.5 also adds opt-in JSON Schema artifacts from that same IR.
 
 I am looking for a few C++ developers to try it on practical model headers.
 
-Repo: https://github.com/cjm-labs/cxx-json-codegen
-Release: https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
-Feedback thread: https://github.com/cjm-labs/cxx-json-codegen/discussions/163
+Repo: https://github.com/cjmworks/cxx-json-codegen
+Release: https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
+Feedback thread: https://github.com/cjmworks/cxx-json-codegen/discussions/163
 
 If you have a small model header that would be a good test case, feedback would
 be very helpful.

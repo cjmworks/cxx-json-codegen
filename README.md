@@ -48,7 +48,7 @@ diagnostics, or documentation feel confusing, please open an issue with the
 smallest reproducible header and build command.
 
 For open-ended usage or design feedback, use
-[GitHub Discussions](https://github.com/cjm-labs/cxx-json-codegen/discussions).
+[GitHub Discussions](https://github.com/cjmworks/cxx-json-codegen/discussions).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, questions, feature
 requests, and pull request guidance.
@@ -329,7 +329,7 @@ include(FetchContent)
 
 FetchContent_Declare(
   cxx_json_codegen
-  GIT_REPOSITORY https://github.com/cjm-labs/cxx-json-codegen.git
+  GIT_REPOSITORY https://github.com/cjmworks/cxx-json-codegen.git
   GIT_TAG v0.5.2
 )
 
@@ -634,11 +634,11 @@ See [ROADMAP.md](ROADMAP.md) for the current product roadmap.
 
 CJM is an open-source project developed by **CJM Labs**.
 
-🌐 https://cjm-labs.org
+🌐 https://cjmworks.org
 
 GitHub Organization:
 
-https://github.com/cjm-labs
+https://github.com/cjmworks
 
 ---
 

@@ -61,7 +61,7 @@ facilities.
 For a possible future native engine, the current working repository name is:
 
 ```text
-cjm-labs/cjm-json
+cjmworks/cjm-json
 ```
 
 This name is provisional. The repository does not exist as part of this

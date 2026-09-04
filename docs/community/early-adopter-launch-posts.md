@@ -42,14 +42,14 @@ Ask for:
 
 ## Links
 
-- Repo: https://github.com/cjm-labs/cxx-json-codegen
-- Release: https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
-- v0.5 release notes: https://github.com/cjm-labs/cxx-json-codegen/blob/main/docs/releases/v0.5.0.md
-- Dogfood report: https://github.com/cjm-labs/cxx-json-codegen/blob/main/docs/dogfood/ull-md-engine-v0.3.0.md
-- v0.5 feedback thread: https://github.com/cjm-labs/cxx-json-codegen/discussions/163
-- Discussions: https://github.com/cjm-labs/cxx-json-codegen/discussions
-- Issues: https://github.com/cjm-labs/cxx-json-codegen/issues
-- Website: https://cjm-labs.org
+- Repo: https://github.com/cjmworks/cxx-json-codegen
+- Release: https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
+- v0.5 release notes: https://github.com/cjmworks/cxx-json-codegen/blob/main/docs/releases/v0.5.0.md
+- Dogfood report: https://github.com/cjmworks/cxx-json-codegen/blob/main/docs/dogfood/ull-md-engine-v0.3.0.md
+- v0.5 feedback thread: https://github.com/cjmworks/cxx-json-codegen/discussions/163
+- Discussions: https://github.com/cjmworks/cxx-json-codegen/discussions
+- Issues: https://github.com/cjmworks/cxx-json-codegen/issues
+- Website: https://cjmworks.org
 
 ## Reddit r/cpp
 
@@ -116,13 +116,13 @@ most useful feedback right now would be:
 - type mappings needed before v1.0
 
 Repo:
-https://github.com/cjm-labs/cxx-json-codegen
+https://github.com/cjmworks/cxx-json-codegen
 
 Release:
-https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
+https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
 
 Discussions:
-https://github.com/cjm-labs/cxx-json-codegen/discussions/163
+https://github.com/cjmworks/cxx-json-codegen/discussions/163
 
 If you maintain C++ code with model structs and JSON integration, I would love
 to hear where this approach works or fails for you.
@@ -141,7 +141,7 @@ Post:
 ````md
 I am looking for early feedback on CJM v0.5.0:
 
-https://github.com/cjm-labs/cxx-json-codegen
+https://github.com/cjmworks/cxx-json-codegen
 
 CJM is a build-time metadata compiler for Modern C++. It reads ordinary C++
 model headers with Go-style JSON field metadata, builds a Metadata IR, and
@@ -204,13 +204,13 @@ model headers and tell me what breaks:
 - missing type mappings before v1.0
 
 Repo:
-https://github.com/cjm-labs/cxx-json-codegen
+https://github.com/cjmworks/cxx-json-codegen
 
 Release:
-https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
+https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
 
 Discussions:
-https://github.com/cjm-labs/cxx-json-codegen/discussions/163
+https://github.com/cjmworks/cxx-json-codegen/discussions/163
 ```
 
 ## LinkedIn Short Variant
@@ -236,7 +236,7 @@ I am looking for a few C++ developers to try it on practical model headers and
 share feedback before v1.0.
 
 Repo:
-https://github.com/cjm-labs/cxx-json-codegen
+https://github.com/cjmworks/cxx-json-codegen
 ```
 
 ## Chinese Short Post
@@ -271,20 +271,20 @@ nested struct、vector、array、optional、string-keyed map、ignore、omitempt
 - v1.0 前还缺哪些 practical mapping。
 
 Repo:
-https://github.com/cjm-labs/cxx-json-codegen
+https://github.com/cjmworks/cxx-json-codegen
 
 Release:
-https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
+https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
 
 Discussions:
-https://github.com/cjm-labs/cxx-json-codegen/discussions/163
+https://github.com/cjmworks/cxx-json-codegen/discussions/163
 ```
 
 ## GitHub Discussions Feedback Thread
 
 Published thread:
 
-https://github.com/cjm-labs/cxx-json-codegen/discussions/163
+https://github.com/cjmworks/cxx-json-codegen/discussions/163
 
 Original title:
 
@@ -317,10 +317,10 @@ This thread is for open-ended usage and adoption feedback:
 
 Useful links:
 
-- Repo: https://github.com/cjm-labs/cxx-json-codegen
-- v0.5.0 release: https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
-- v0.5.0 release notes: https://github.com/cjm-labs/cxx-json-codegen/blob/main/docs/releases/v0.5.0.md
-- Dogfood report: https://github.com/cjm-labs/cxx-json-codegen/blob/main/docs/dogfood/ull-md-engine-v0.3.0.md
+- Repo: https://github.com/cjmworks/cxx-json-codegen
+- v0.5.0 release: https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
+- v0.5.0 release notes: https://github.com/cjmworks/cxx-json-codegen/blob/main/docs/releases/v0.5.0.md
+- Dogfood report: https://github.com/cjmworks/cxx-json-codegen/blob/main/docs/dogfood/ull-md-engine-v0.3.0.md
 
 If you try CJM, please share the smallest practical model that worked or failed.
 ```
@@ -335,9 +335,9 @@ It reads ordinary C++ model headers with Go-style JSON metadata, builds a
 Metadata IR, and generates ordinary nlohmann/json integration during the build.
 v0.5 also adds opt-in JSON Schema artifacts from that same IR.
 
-Repo: https://github.com/cjm-labs/cxx-json-codegen
-Release: https://github.com/cjm-labs/cxx-json-codegen/releases/tag/v0.5.0
-Feedback thread: https://github.com/cjm-labs/cxx-json-codegen/discussions/163
+Repo: https://github.com/cjmworks/cxx-json-codegen
+Release: https://github.com/cjmworks/cxx-json-codegen/releases/tag/v0.5.0
+Feedback thread: https://github.com/cjmworks/cxx-json-codegen/discussions/163
 
 If you have a small model header that would be a good test case, feedback would
 be very helpful.

@@ -27,12 +27,12 @@ rather than referring to the repository name.
 **GitHub Organization**
 
 ```
-cjm-labs
+cjmworks
 ```
 
 Official GitHub Organization:
 
-https://github.com/cjm-labs
+https://github.com/cjmworks
 
 ---
 
@@ -55,7 +55,7 @@ The product name remains **CJM**.
 Official website:
 
 ```
-https://cjm-labs.org
+https://cjmworks.org
 ```
 
 The website represents the entire CJM Labs organization rather than an individual project.

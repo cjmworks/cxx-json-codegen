@@ -33,12 +33,12 @@ The most helpful discussion includes:
 
 ## Where To Post
 
-Use [GitHub Discussions](https://github.com/cjm-labs/cxx-json-codegen/discussions)
+Use [GitHub Discussions](https://github.com/cjmworks/cxx-json-codegen/discussions)
 for open-ended design, adoption, and usage feedback.
 
 The current v0.5 early-adopter feedback thread is:
 
-https://github.com/cjm-labs/cxx-json-codegen/discussions/163
+https://github.com/cjmworks/cxx-json-codegen/discussions/163
 
 Use GitHub Issues for concrete bugs, reproducible failures, and scoped feature
 requests.
