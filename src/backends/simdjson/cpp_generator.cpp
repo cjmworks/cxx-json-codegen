@@ -588,42 +588,61 @@ std::string scalar_value_type_name(const metadata::FieldType& type) {
     return metadata_type_name(type);
 }
 
-void generate_vector_scalar_field_decode(
+// Generate one supported scalar-element vector value decoder.
+void generate_vector_scalar_value_decode(
     std::ostringstream& out, const metadata::FieldModel& field,
-    const std::vector<metadata::EnumModel>& enums) {
-    const auto& element_type = field.type.arguments[0];
-    const std::string member_name = "value." + field.name;
+    const metadata::FieldType& vector_type,
+    const std::vector<metadata::EnumModel>& enums,
+    const std::string& simdjson_value_expression,
+    const std::string& target_expression, std::size_t indent_level) {
+
+    const auto& element_type = vector_type.arguments[0];
     const std::string array_name = "decoded_" + field.name + "_array";
     const std::string index_name = "decoded_" + field.name + "_index";
     const std::string element_name = "decoded_" + field.name + "_element";
     const std::string value_name = "decoded_" + field.name + "_value";
 
-    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
-    write_line(out, 3, "::simdjson::ondemand::array " + array_name + ";");
-    write_line(out, 3,
-               "runtime_error = field.value().get_array().get(" + array_name +
-                   ");");
-    write_line(out, 3, "if (runtime_error) {");
-    write_line(out, 4, "error.code = DecodeErrorCode::expected_array;");
-    generate_value_error_path(out, field, 4, std::nullopt);
-    write_line(out, 4, "error.runtime_error = runtime_error;");
-    write_line(out, 4, "return false;");
-    write_line(out, 3, "}");
+    write_line(out, indent_level,
+               "::simdjson::ondemand::array " + array_name + ";");
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression +
+                   ".get_array().get(" + array_name + ");");
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::expected_array;");
+    generate_value_error_path(out, field, indent_level + 1, std::nullopt);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
     write_line(out, 0, "");
 
-    write_line(out, 3, member_name + ".clear();");
-    write_line(out, 3, "std::size_t " + index_name + " = 0;");
-    write_line(out, 3,
+    write_line(out, indent_level, target_expression + ".clear();");
+    write_line(out, indent_level, "std::size_t " + index_name + " = 0;");
+    write_line(out, indent_level,
                "for (auto " + element_name + " : " + array_name + ") {");
-    write_line(out, 4,
+    write_line(out, indent_level + 1,
                scalar_value_type_name(element_type) + " " + value_name + "{};");
 
     generate_scalar_value_decode(out, field, element_type, enums, element_name,
-                                 value_name, 4, index_name);
+                                 value_name, indent_level + 1, index_name);
 
-    write_line(out, 4, member_name + ".push_back(" + value_name + ");");
-    write_line(out, 4, "++" + index_name + ";");
-    write_line(out, 3, "}");
+    write_line(out, indent_level + 1,
+               target_expression + ".push_back(" + value_name + ");");
+    write_line(out, indent_level + 1, "++" + index_name + ";");
+    write_line(out, indent_level, "}");
+}
+
+// Generate one required scalar-element vector field decoder.
+void generate_vector_scalar_field_decode(
+    std::ostringstream& out, const metadata::FieldModel& field,
+    const std::vector<metadata::EnumModel>& enums) {
+    const std::string member_name = "value." + field.name;
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+
+    generate_vector_scalar_value_decode(out, field, field.type, enums,
+                                        "field.value()", member_name, 3);
+
     write_line(out, 3, "has_" + field.name + " = true;");
     write_line(out, 3, "continue;");
     write_line(out, 2, "}");
