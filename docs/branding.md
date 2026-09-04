@@ -58,7 +58,7 @@ Official website:
 https://cjmworks.org
 ```
 
-The website represents the entire CJM Labs organization rather than an individual project.
+The website represents the entire CJM Works organization rather than an individual project.
 
 ---
 
@@ -171,4 +171,4 @@ Everything else is an implementation detail.
 
 CJM aims to become a production-quality developer tool that integrates naturally into existing C++ projects while maintaining an intuitive, Go-inspired developer experience.
 
-CJM Labs serves as the home for this project and future open-source engineering tools.
+CJM Works serves as the home for this project and future open-source engineering tools.

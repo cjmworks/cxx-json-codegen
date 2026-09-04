@@ -632,7 +632,7 @@ See [ROADMAP.md](ROADMAP.md) for the current product roadmap.
 
 ## About
 
-CJM is an open-source project developed by **CJM Labs**.
+CJM is an open-source project developed by **CJM Works**.
 
 🌐 https://cjmworks.org
 
