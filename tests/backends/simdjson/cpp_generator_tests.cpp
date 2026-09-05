@@ -175,6 +175,37 @@ ProjectModel make_vector_project() {
     return project;
 }
 
+// Build one model containing ordered and unordered string-keyed scalar maps.
+ProjectModel make_map_project() {
+    auto counts_field = make_required_field(
+        "counts", FieldTypeKind::Map,
+        "std::map<std::string, std::int32_t>");
+    counts_field.type.qualified_name = "std::map";
+    counts_field.type.arguments = {
+        FieldType{FieldTypeKind::String, "std::string", "std::string"},
+        FieldType{FieldTypeKind::SignedInteger, "std::int32_t",
+                  "std::int32_t"},
+    };
+
+    auto labels_field = make_required_field(
+        "labels", FieldTypeKind::Map,
+        "std::unordered_map<std::string, std::string>");
+    labels_field.type.qualified_name = "std::unordered_map";
+    labels_field.type.arguments = {
+        FieldType{FieldTypeKind::String, "std::string", "std::string"},
+        FieldType{FieldTypeKind::String, "std::string", "std::string"},
+    };
+
+    TypeModel type;
+    type.name = "MapValues";
+    type.qualified_name = "MapValues";
+    type.fields = {counts_field, labels_field};
+
+    ProjectModel project;
+    project.types = {type};
+    return project;
+}
+
 // Build one model containing an optional inner type outside the current
 // simdjson slice.
 ProjectModel make_optional_vector_project() {
@@ -723,18 +754,47 @@ int main() {
                std::string::npos);
     }
     {
+        const auto result =
+            cjm::generator::simdjson::generate_header(make_map_project());
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find(
+                   "::simdjson::ondemand::object decoded_counts_object;") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "for (auto decoded_counts_entry : decoded_counts_object)") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "decoded_counts_entry.unescaped_key().get("
+                   "decoded_counts_key)") != std::string::npos);
+        assert(result.header.find(
+                   "value.counts[std::string(decoded_counts_key)] = "
+                   "decoded_counts_value;") != std::string::npos);
+        assert(result.header.find(
+                   "{DecodePathSegmentKind::field, "
+                   "std::string(decoded_counts_key), 0}") !=
+               std::string::npos);
+
+        const auto expected =
+            read_file("tests/golden/simdjson_map.expected.cjm.hpp");
+        if (result.header != expected) {
+            std::cerr << "generated simdjson map header:\n" << result.header;
+        }
+        assert(result.header == expected);
+    }
+    {
         auto field = make_required_field("counts", FieldTypeKind::Map,
-                                         "std::map<std::string, int>");
+                                         "std::map<int, int>");
         field.type.qualified_name = "std::map";
         field.type.arguments = {
-            FieldType{FieldTypeKind::String, "std::string", "std::string"},
+            FieldType{FieldTypeKind::SignedInteger, "int", "int"},
             FieldType{FieldTypeKind::SignedInteger, "int", "int"},
         };
 
         const auto result = cjm::generator::simdjson::generate_header(
             make_single_field_project("MapValues", field));
         expect_unsupported_capability(result, "MapValues", "counts", "counts",
-                                      "std::map<std::string, int>",
+                                      "std::map<int, int>",
                                       "map decode is not implemented");
     }
     {
