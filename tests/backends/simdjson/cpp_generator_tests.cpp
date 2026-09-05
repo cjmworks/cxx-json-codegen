@@ -603,8 +603,7 @@ int main() {
                                          ".get(decoded_statuses_view)") !=
                std::string::npos);
         assert(vector_result.header.find(
-                   "decoded_statuses_view == \"Active\"") !=
-               std::string::npos);
+                   "decoded_statuses_view == \"Active\"") != std::string::npos);
         assert(vector_result.header.find(
                    "value.statuses.push_back(decoded_statuses_value);") !=
                std::string::npos);
@@ -615,10 +614,26 @@ int main() {
     {
         const auto result = cjm::generator::simdjson::generate_header(
             make_optional_vector_project());
-        expect_unsupported_capability(
-            result, "OptionalVectorValues", "maybe_tags", "maybe_tags",
-            "std::optional<std::vector<std::string>>",
-            "optional decode is only implemented for scalar inner values");
+        assert(result.success);
+        assert(result.error.empty());
+
+        assert(result.header.find(
+                   "std::vector<std::string> decoded_maybe_tags_vector{};") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "field.value().get_array().get(decoded_maybe_tags_array)") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "value.maybe_tags = decoded_maybe_tags_vector;") !=
+               std::string::npos);
+
+        const auto expected = read_file(
+            "tests/golden/simdjson_optional_vector.expected.cjm.hpp");
+        if (result.header != expected) {
+            std::cerr << "generated simdjson optional-vector header:\n"
+                      << result.header;
+        }
+        assert(result.header == expected);
     }
     {
         const auto result =

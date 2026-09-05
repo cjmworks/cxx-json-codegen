@@ -66,34 +66,6 @@ find_enum_model(const std::vector<metadata::EnumModel>& enums,
     return nullptr;
 }
 
-// Return whether an optional field has a complete generated decoder.
-bool is_supported_optional_field(
-    const metadata::FieldType& type,
-    const std::vector<metadata::EnumModel>& enums) {
-    if (type.kind != metadata::FieldTypeKind::Optional ||
-        type.arguments.size() != 1) {
-        return false;
-    }
-
-    switch (type.arguments[0].kind) {
-    case metadata::FieldTypeKind::Bool:
-    case metadata::FieldTypeKind::SignedInteger:
-    case metadata::FieldTypeKind::UnsignedInteger:
-    case metadata::FieldTypeKind::String:
-        return true;
-    case metadata::FieldTypeKind::Enum:
-        return find_enum_model(enums, type.arguments[0]) != nullptr;
-    case metadata::FieldTypeKind::FloatingPoint:
-    case metadata::FieldTypeKind::Array:
-    case metadata::FieldTypeKind::Vector:
-    case metadata::FieldTypeKind::Map:
-    case metadata::FieldTypeKind::Optional:
-    case metadata::FieldTypeKind::UserDefined:
-        return false;
-    }
-    return false;
-}
-
 // Return whether a user-defined field has a complete generated decoder.
 bool is_supported_user_defined_field(const metadata::FieldType& type) {
     return type.kind == metadata::FieldTypeKind::UserDefined &&
@@ -135,6 +107,35 @@ bool is_supported_vector_field(const metadata::FieldType& type,
     return type.kind == metadata::FieldTypeKind::Vector &&
            type.arguments.size() == 1 &&
            is_supported_scalar_type(type.arguments[0], enums);
+}
+
+// Return whether an optional field has a complete generated decoder.
+bool is_supported_optional_field(
+    const metadata::FieldType& type,
+    const std::vector<metadata::EnumModel>& enums) {
+    if (type.kind != metadata::FieldTypeKind::Optional ||
+        type.arguments.size() != 1) {
+        return false;
+    }
+
+    switch (type.arguments[0].kind) {
+    case metadata::FieldTypeKind::Bool:
+    case metadata::FieldTypeKind::SignedInteger:
+    case metadata::FieldTypeKind::UnsignedInteger:
+    case metadata::FieldTypeKind::String:
+        return true;
+    case metadata::FieldTypeKind::Enum:
+        return find_enum_model(enums, type.arguments[0]) != nullptr;
+    case metadata::FieldTypeKind::Vector:
+        return is_supported_vector_field(type.arguments[0], enums);
+    case metadata::FieldTypeKind::FloatingPoint:
+    case metadata::FieldTypeKind::Array:
+    case metadata::FieldTypeKind::Map:
+    case metadata::FieldTypeKind::Optional:
+    case metadata::FieldTypeKind::UserDefined:
+        return false;
+    }
+    return false;
 }
 
 // Return the backend capability failure for one field, when supported.
@@ -539,32 +540,6 @@ void generate_scalar_field_decode(
     write_line(out, 2, "}");
 }
 
-// Generate one optional scalar field decoder.
-void generate_optional_field_decode(
-    std::ostringstream& out, const metadata::FieldModel& field,
-    const std::vector<metadata::EnumModel>& enums) {
-    const auto& inner_type = field.type.arguments[0];
-
-    const std::string decoded_name = "decoded_" + field.name;
-    const std::string target_name = decoded_name + "_value";
-
-    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
-    write_line(out, 3, "value." + field.name + " = std::nullopt;");
-    write_line(out, 3, "if (field.value().is_null()) {");
-    write_line(out, 4, "continue;");
-    write_line(out, 3, "}");
-
-    write_line(out, 3,
-               optional_inner_type_name(inner_type) + " " + target_name +
-                   "{};");
-    generate_scalar_value_decode(out, field, inner_type, enums, "field.value()",
-                                 target_name, 3, std::nullopt);
-
-    write_line(out, 3, "value." + field.name + " = " + target_name + ";");
-    write_line(out, 3, "continue;");
-    write_line(out, 2, "}");
-}
-
 // Return the generated C++ type spelling for one scalar decoded value.
 std::string scalar_value_type_name(const metadata::FieldType& type) {
     switch (type.kind) {
@@ -630,6 +605,40 @@ void generate_vector_scalar_value_decode(
                target_expression + ".push_back(" + value_name + ");");
     write_line(out, indent_level + 1, "++" + index_name + ";");
     write_line(out, indent_level, "}");
+}
+
+// Generate one optional scalar field decoder.
+void generate_optional_field_decode(
+    std::ostringstream& out, const metadata::FieldModel& field,
+    const std::vector<metadata::EnumModel>& enums) {
+    const auto& inner_type = field.type.arguments[0];
+
+    const std::string decoded_name = "decoded_" + field.name;
+    const std::string target_name =
+        decoded_name + (inner_type.kind == metadata::FieldTypeKind::Vector
+                            ? "_vector"
+                            : "_value");
+
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    write_line(out, 3, "value." + field.name + " = std::nullopt;");
+    write_line(out, 3, "if (field.value().is_null()) {");
+    write_line(out, 4, "continue;");
+    write_line(out, 3, "}");
+
+    write_line(out, 3,
+               optional_inner_type_name(inner_type) + " " + target_name +
+                   "{};");
+    if (inner_type.kind == metadata::FieldTypeKind::Vector) {
+        generate_vector_scalar_value_decode(out, field, inner_type, enums,
+                                            "field.value()", target_name, 3);
+    } else {
+        generate_scalar_value_decode(out, field, inner_type, enums,
+                                     "field.value()", target_name, 3,
+                                     std::nullopt);
+    }
+    write_line(out, 3, "value." + field.name + " = " + target_name + ";");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
 }
 
 // Generate one required scalar-element vector field decoder.
