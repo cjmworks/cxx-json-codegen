@@ -109,6 +109,14 @@ bool is_supported_vector_field(const metadata::FieldType& type,
            is_supported_scalar_type(type.arguments[0], enums);
 }
 
+// Return whether a fixed array field has a complete scalar element decoder.
+bool is_supported_array_field(const metadata::FieldType& type,
+                              const std::vector<metadata::EnumModel>& enums) {
+    return type.kind == metadata::FieldTypeKind::Array &&
+           type.arguments.size() == 1 &&
+           is_supported_scalar_type(type.arguments[0], enums);
+}
+
 // Return whether an optional field has a complete generated decoder.
 bool is_supported_optional_field(
     const metadata::FieldType& type,
@@ -149,6 +157,7 @@ std::optional<UnsupportedCapability> unsupported_capability_for_field(
     if (is_supported_scalar_type(field.type, enums) ||
         is_supported_optional_field(field.type, enums) ||
         is_supported_vector_field(field.type, enums) ||
+        is_supported_array_field(field.type, enums) ||
         is_supported_user_defined_field(field.type)) {
         return std::nullopt;
     }
@@ -266,6 +275,7 @@ void generate_decode_error_model(std::ostringstream& out) {
         << "    expected_unsigned_integer,\n"
         << "    invalid_enum_string,\n"
         << "    integer_overflow,\n"
+        << "    fixed_array_extent_mismatch,\n"
         << "    missing_required_field\n"
         << "};\n"
         << "\n"
@@ -607,6 +617,66 @@ void generate_vector_scalar_value_decode(
     write_line(out, indent_level, "}");
 }
 
+// Generate one supported scalar-element fixed-array value decoder.
+void generate_array_scalar_value_decode(
+    std::ostringstream& out, const metadata::FieldModel& field,
+    const metadata::FieldType& array_type,
+    const std::vector<metadata::EnumModel>& enums,
+    const std::string& simdjson_value_expression,
+    const std::string& target_expression, std::size_t indent_level) {
+    const auto& element_type = array_type.arguments[0];
+    const std::string array_name = "decoded_" + field.name + "_array";
+    const std::string index_name = "decoded_" + field.name + "_index";
+    const std::string element_name = "decoded_" + field.name + "_element";
+    const std::string value_name = "decoded_" + field.name + "_value";
+    const std::string extent = std::to_string(array_type.array_extent);
+
+    write_line(out, indent_level,
+               "::simdjson::ondemand::array " + array_name + ";");
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression +
+                   ".get_array().get(" + array_name + ");");
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::expected_array;");
+    generate_value_error_path(out, field, indent_level + 1, std::nullopt);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
+    write_line(out, 0, "");
+
+    write_line(out, indent_level, "std::size_t " + index_name + " = 0;");
+    write_line(out, indent_level,
+               "for (auto " + element_name + " : " + array_name + ") {");
+    write_line(out, indent_level + 1,
+               "if (" + index_name + " >= " + extent + ") {");
+    write_line(out, indent_level + 2,
+               "error.code = DecodeErrorCode::fixed_array_extent_mismatch;");
+    generate_value_error_path(out, field, indent_level + 2, std::nullopt);
+    write_line(out, indent_level + 2, "return false;");
+    write_line(out, indent_level + 1, "}");
+
+    write_line(out, indent_level + 1,
+               scalar_value_type_name(element_type) + " " + value_name + "{};");
+
+    generate_scalar_value_decode(out, field, element_type, enums, element_name,
+                                 value_name, indent_level + 1, index_name);
+
+    write_line(out, indent_level + 1,
+               target_expression + "[" + index_name + "] = " + value_name +
+                   ";");
+    write_line(out, indent_level + 1, "++" + index_name + ";");
+    write_line(out, indent_level, "}");
+
+    write_line(out, indent_level,
+               "if (" + index_name + " != " + extent + ") {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::fixed_array_extent_mismatch;");
+    generate_value_error_path(out, field, indent_level + 1, std::nullopt);
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
+}
+
 // Generate one optional scalar field decoder.
 void generate_optional_field_decode(
     std::ostringstream& out, const metadata::FieldModel& field,
@@ -657,6 +727,19 @@ void generate_vector_scalar_field_decode(
     write_line(out, 2, "}");
 }
 
+// Generate one required scalar-element fixed-array field decoder.
+void generate_array_scalar_field_decode(
+    std::ostringstream& out, const metadata::FieldModel& field,
+    const std::vector<metadata::EnumModel>& enums) {
+    const std::string member_name = "value." + field.name;
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    generate_array_scalar_value_decode(out, field, field.type, enums,
+                                       "field.value()", member_name, 3);
+    write_line(out, 3, "has_" + field.name + " = true;");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
 // Generate one required nested object field decoder.
 void generate_user_defined_field_decode(std::ostringstream& out,
                                         const metadata::FieldModel& field) {
@@ -699,8 +782,10 @@ void generate_field_decode(std::ostringstream& out,
     case metadata::FieldTypeKind::Vector:
         generate_vector_scalar_field_decode(out, field, enums);
         return;
-    case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::Array:
+        generate_array_scalar_field_decode(out, field, enums);
+        return;
+    case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
         generate_optional_field_decode(out, field, enums);

@@ -64,12 +64,12 @@ namespace cjm::simdjson::detail {
 
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
-    ::SliceAddress& value,
+    ::ArrayValues& value,
     DecodeError& error) {
     ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
 
     // 1. Track required fields for this object.
-    bool has_city = false;
+    bool has_samples = false;
 
     // 2. Visit each JSON field once.
     for (auto field : object) {
@@ -81,27 +81,72 @@ inline bool decode_object(
             return false;
         }
 
-        if (key == "city") {
-            std::string_view decoded_city_view;
-            runtime_error = field.value().get_string().get(decoded_city_view);
+        if (key == "samples") {
+            ::simdjson::ondemand::array decoded_samples_array;
+            runtime_error = field.value().get_array().get(decoded_samples_array);
             if (runtime_error) {
-                error.code = DecodeErrorCode::expected_string;
+                error.code = DecodeErrorCode::expected_array;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "city", 0});
+                    {DecodePathSegmentKind::field, "samples", 0});
                 error.runtime_error = runtime_error;
                 return false;
             }
-            value.city.assign(decoded_city_view.begin(), decoded_city_view.end());
-            has_city = true;
+
+            std::size_t decoded_samples_index = 0;
+            for (auto decoded_samples_element : decoded_samples_array) {
+                if (decoded_samples_index >= 4) {
+                    error.code = DecodeErrorCode::fixed_array_extent_mismatch;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "samples", 0});
+                    return false;
+                }
+                int decoded_samples_value{};
+                using target_type = decltype(decoded_samples_value);
+                std::int64_t decoded_samples = 0;
+                runtime_error = decoded_samples_element.get_int64().get(decoded_samples);
+                if (runtime_error) {
+                    error.code = DecodeErrorCode::expected_integer;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "samples", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_samples_index});
+                    error.runtime_error = runtime_error;
+                    return false;
+                }
+
+                const auto target_min = static_cast<std::int64_t>(
+                    (std::numeric_limits<target_type>::min)());
+                const auto target_max = static_cast<std::int64_t>(
+                    (std::numeric_limits<target_type>::max)());
+                if (decoded_samples < target_min || decoded_samples > target_max) {
+                    error.code = DecodeErrorCode::integer_overflow;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "samples", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_samples_index});
+                    return false;
+                }
+
+                decoded_samples_value = static_cast<target_type>(decoded_samples);
+                value.samples[decoded_samples_index] = decoded_samples_value;
+                ++decoded_samples_index;
+            }
+            if (decoded_samples_index != 4) {
+                error.code = DecodeErrorCode::fixed_array_extent_mismatch;
+                error.path.push_back(
+                    {DecodePathSegmentKind::field, "samples", 0});
+                return false;
+            }
+            has_samples = true;
             continue;
         }
     }
 
     // 3. Verify that every required field was present.
-    if (!has_city) {
+    if (!has_samples) {
         error.code = DecodeErrorCode::missing_required_field;
         error.path.push_back(
-            {DecodePathSegmentKind::field, "city", 0});
+            {DecodePathSegmentKind::field, "samples", 0});
         return false;
     }
 
@@ -114,8 +159,8 @@ inline bool decode_object(
 namespace cjm::simdjson {
 
 template <>
-inline std::optional<::SliceAddress>
-from_json<::SliceAddress>(
+inline std::optional<::ArrayValues>
+from_json<::ArrayValues>(
     std::string_view input,
     DecodeError& error) {
     // 1. Prepare the padded input owned for this decode.
@@ -142,7 +187,7 @@ from_json<::SliceAddress>(
         return std::nullopt;
     }
     // 3. Decode the root object into a new value.
-    ::SliceAddress value{};
+    ::ArrayValues value{};
     if (!detail::decode_object(object, value, error)) {
         return std::nullopt;
     }
@@ -164,14 +209,12 @@ namespace cjm::simdjson::detail {
 
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
-    ::SliceUser& value,
+    ::ZeroArrayValues& value,
     DecodeError& error) {
     ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
 
     // 1. Track required fields for this object.
-    bool has_id = false;
-    bool has_name = false;
-    bool has_address = false;
+    bool has_samples = false;
 
     // 2. Visit each JSON field once.
     for (auto field : object) {
@@ -183,117 +226,72 @@ inline bool decode_object(
             return false;
         }
 
-        if (key == "id") {
-            using target_type = decltype(value.id);
-            std::int64_t decoded_id = 0;
-            runtime_error = field.value().get_int64().get(decoded_id);
+        if (key == "samples") {
+            ::simdjson::ondemand::array decoded_samples_array;
+            runtime_error = field.value().get_array().get(decoded_samples_array);
             if (runtime_error) {
-                error.code = DecodeErrorCode::expected_integer;
+                error.code = DecodeErrorCode::expected_array;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "id", 0});
+                    {DecodePathSegmentKind::field, "samples", 0});
                 error.runtime_error = runtime_error;
                 return false;
             }
 
-            const auto target_min = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::min)());
-            const auto target_max = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::max)());
-            if (decoded_id < target_min || decoded_id > target_max) {
-                error.code = DecodeErrorCode::integer_overflow;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "id", 0});
-                return false;
-            }
+            std::size_t decoded_samples_index = 0;
+            for (auto decoded_samples_element : decoded_samples_array) {
+                if (decoded_samples_index >= 0) {
+                    error.code = DecodeErrorCode::fixed_array_extent_mismatch;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "samples", 0});
+                    return false;
+                }
+                int decoded_samples_value{};
+                using target_type = decltype(decoded_samples_value);
+                std::int64_t decoded_samples = 0;
+                runtime_error = decoded_samples_element.get_int64().get(decoded_samples);
+                if (runtime_error) {
+                    error.code = DecodeErrorCode::expected_integer;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "samples", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_samples_index});
+                    error.runtime_error = runtime_error;
+                    return false;
+                }
 
-            value.id = static_cast<target_type>(decoded_id);
-            has_id = true;
-            continue;
-        }
-        if (key == "name") {
-            std::string_view decoded_name_view;
-            runtime_error = field.value().get_string().get(decoded_name_view);
-            if (runtime_error) {
-                error.code = DecodeErrorCode::expected_string;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "name", 0});
-                error.runtime_error = runtime_error;
-                return false;
-            }
-            value.name.assign(decoded_name_view.begin(), decoded_name_view.end());
-            has_name = true;
-            continue;
-        }
-        if (key == "maybe_count") {
-            value.maybe_count = std::nullopt;
-            if (field.value().is_null()) {
-                continue;
-            }
-            std::int64_t decoded_maybe_count_value{};
-            using target_type = decltype(decoded_maybe_count_value);
-            std::int64_t decoded_maybe_count = 0;
-            runtime_error = field.value().get_int64().get(decoded_maybe_count);
-            if (runtime_error) {
-                error.code = DecodeErrorCode::expected_integer;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "maybe_count", 0});
-                error.runtime_error = runtime_error;
-                return false;
-            }
+                const auto target_min = static_cast<std::int64_t>(
+                    (std::numeric_limits<target_type>::min)());
+                const auto target_max = static_cast<std::int64_t>(
+                    (std::numeric_limits<target_type>::max)());
+                if (decoded_samples < target_min || decoded_samples > target_max) {
+                    error.code = DecodeErrorCode::integer_overflow;
+                    error.path.push_back(
+                        {DecodePathSegmentKind::field, "samples", 0});
+                    error.path.push_back(
+                        {DecodePathSegmentKind::index, "", decoded_samples_index});
+                    return false;
+                }
 
-            const auto target_min = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::min)());
-            const auto target_max = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::max)());
-            if (decoded_maybe_count < target_min || decoded_maybe_count > target_max) {
-                error.code = DecodeErrorCode::integer_overflow;
+                decoded_samples_value = static_cast<target_type>(decoded_samples);
+                value.samples[decoded_samples_index] = decoded_samples_value;
+                ++decoded_samples_index;
+            }
+            if (decoded_samples_index != 0) {
+                error.code = DecodeErrorCode::fixed_array_extent_mismatch;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "maybe_count", 0});
+                    {DecodePathSegmentKind::field, "samples", 0});
                 return false;
             }
-
-            decoded_maybe_count_value = static_cast<target_type>(decoded_maybe_count);
-            value.maybe_count = decoded_maybe_count_value;
-            continue;
-        }
-        if (key == "address") {
-            ::simdjson::ondemand::object decoded_address;
-            runtime_error = field.value().get_object().get(decoded_address);
-            if (runtime_error) {
-                error.code = DecodeErrorCode::expected_object;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "address", 0});
-                error.runtime_error = runtime_error;
-                return false;
-            }
-            if (!detail::decode_object(decoded_address, value.address, error)) {
-                error.path.insert(
-                    error.path.begin(),
-                    {DecodePathSegmentKind::field, "address", 0});
-                return false;
-            }
-            has_address = true;
+            has_samples = true;
             continue;
         }
     }
 
     // 3. Verify that every required field was present.
-    if (!has_id) {
+    if (!has_samples) {
         error.code = DecodeErrorCode::missing_required_field;
         error.path.push_back(
-            {DecodePathSegmentKind::field, "id", 0});
-        return false;
-    }
-    if (!has_name) {
-        error.code = DecodeErrorCode::missing_required_field;
-        error.path.push_back(
-            {DecodePathSegmentKind::field, "name", 0});
-        return false;
-    }
-    if (!has_address) {
-        error.code = DecodeErrorCode::missing_required_field;
-        error.path.push_back(
-            {DecodePathSegmentKind::field, "address", 0});
+            {DecodePathSegmentKind::field, "samples", 0});
         return false;
     }
 
@@ -306,8 +304,8 @@ inline bool decode_object(
 namespace cjm::simdjson {
 
 template <>
-inline std::optional<::SliceUser>
-from_json<::SliceUser>(
+inline std::optional<::ZeroArrayValues>
+from_json<::ZeroArrayValues>(
     std::string_view input,
     DecodeError& error) {
     // 1. Prepare the padded input owned for this decode.
@@ -334,7 +332,7 @@ from_json<::SliceUser>(
         return std::nullopt;
     }
     // 3. Decode the root object into a new value.
-    ::SliceUser value{};
+    ::ZeroArrayValues value{};
     if (!detail::decode_object(object, value, error)) {
         return std::nullopt;
     }

@@ -30,6 +30,7 @@ enum class DecodeErrorCode {
     expected_unsigned_integer,
     invalid_enum_string,
     integer_overflow,
+    fixed_array_extent_mismatch,
     missing_required_field
 };
 

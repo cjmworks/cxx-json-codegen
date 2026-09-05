@@ -627,8 +627,8 @@ int main() {
                    "value.maybe_tags = decoded_maybe_tags_vector;") !=
                std::string::npos);
 
-        const auto expected = read_file(
-            "tests/golden/simdjson_optional_vector.expected.cjm.hpp");
+        const auto expected =
+            read_file("tests/golden/simdjson_optional_vector.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson optional-vector header:\n"
                       << result.header;
@@ -683,9 +683,18 @@ int main() {
 
         const auto result = cjm::generator::simdjson::generate_header(
             make_single_field_project("ArrayValues", field));
-        expect_unsupported_capability(result, "ArrayValues", "samples",
-                                      "samples", "std::array<int, 4>",
-                                      "fixed array decode is not implemented");
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find("if (decoded_samples_index >= 4)") !=
+               std::string::npos);
+        assert(result.header.find("value.samples[decoded_samples_index] = "
+                                  "decoded_samples_value;") !=
+               std::string::npos);
+        assert(result.header.find("if (decoded_samples_index != 4)") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "DecodeErrorCode::fixed_array_extent_mismatch") !=
+               std::string::npos);
     }
     {
         auto field = make_required_field("counts", FieldTypeKind::Map,
