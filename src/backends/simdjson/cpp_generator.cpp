@@ -101,12 +101,13 @@ bool is_supported_scalar_type(const metadata::FieldType& type,
     return is_supported_scalar_kind(type.kind);
 }
 
-// Return whether a vector field has a complete scalar element decoder.
+// Return whether a vector field has a complete element decoder.
 bool is_supported_vector_field(const metadata::FieldType& type,
                                const std::vector<metadata::EnumModel>& enums) {
     return type.kind == metadata::FieldTypeKind::Vector &&
            type.arguments.size() == 1 &&
-           is_supported_scalar_type(type.arguments[0], enums);
+           (is_supported_scalar_type(type.arguments[0], enums) ||
+            is_supported_user_defined_field(type.arguments[0]));
 }
 
 // Return whether a fixed array field has a complete scalar element decoder.
@@ -346,6 +347,17 @@ void generate_prepend_field_error_path(std::ostringstream& out,
     write_line(out, indent_level + 1,
                "{DecodePathSegmentKind::field, \"" + field.json.name +
                    "\", 0});");
+}
+
+// Generate one structured index path prepend.
+void generate_prepend_index_error_path(std::ostringstream& out,
+                                       const std::string& index_expression,
+                                       std::size_t indent_level) {
+    write_line(out, indent_level, "error.path.insert(");
+    write_line(out, indent_level + 1, "error.path.begin(),");
+    write_line(out, indent_level + 1,
+               "{DecodePathSegmentKind::index, \"\", " + index_expression +
+                   "});");
 }
 
 // Generate one bool value decoder.
@@ -617,6 +629,72 @@ void generate_vector_scalar_value_decode(
     write_line(out, indent_level, "}");
 }
 
+// Generate one user-defined-element vector value decoder.
+void generate_vector_user_defined_value_decode(
+    std::ostringstream& out, const metadata::FieldModel& field,
+    const metadata::FieldType& vector_type,
+    const std::string& simdjson_value_expression,
+    const std::string& target_expression, std::size_t indent_level) {
+    const auto& element_type = vector_type.arguments[0];
+    const std::string array_name = "decoded_" + field.name + "_array";
+    const std::string index_name = "decoded_" + field.name + "_index";
+    const std::string element_name = "decoded_" + field.name + "_element";
+    const std::string object_name = "decoded_" + field.name + "_object";
+    const std::string value_name = "decoded_" + field.name + "_value";
+
+    write_line(out, indent_level,
+               "::simdjson::ondemand::array " + array_name + ";");
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression +
+                   ".get_array().get(" + array_name + ");");
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::expected_array;");
+    generate_value_error_path(out, field, indent_level + 1, std::nullopt);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
+    write_line(out, 0, "");
+
+    write_line(out, indent_level, target_expression + ".clear();");
+    write_line(out, indent_level, "std::size_t " + index_name + " = 0;");
+    write_line(out, indent_level,
+               "for (auto " + element_name + " : " + array_name + ") {");
+    write_line(out, indent_level + 1,
+               "::simdjson::ondemand::object " + object_name + ";");
+    write_line(out, indent_level + 1,
+               "runtime_error = " + element_name + ".get_object().get(" +
+                   object_name + ");");
+    write_line(out, indent_level + 1, "if (runtime_error) {");
+    write_line(out, indent_level + 2,
+               "error.code = DecodeErrorCode::expected_object;");
+    generate_value_error_path(out, field, indent_level + 2, index_name);
+    write_line(out, indent_level + 2, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 2, "return false;");
+    write_line(out, indent_level + 1, "}");
+
+    const auto element_type_name = metadata_type_name(element_type);
+    const auto generated_element_type_name =
+        element_type_name.rfind("::", 0) == 0 ? element_type_name
+                                              : "::" + element_type_name;
+    write_line(out, indent_level + 1,
+               generated_element_type_name + " " + value_name + "{};");
+    write_line(out, indent_level + 1,
+               "if (!detail::decode_object(" + object_name + ", " + value_name +
+                   ", error)) {");
+
+    generate_prepend_index_error_path(out, index_name, indent_level + 2);
+    generate_prepend_field_error_path(out, field, indent_level + 2);
+
+    write_line(out, indent_level + 2, "return false;");
+    write_line(out, indent_level + 1, "}");
+
+    write_line(out, indent_level + 1,
+               target_expression + ".push_back(" + value_name + ");");
+    write_line(out, indent_level + 1, "++" + index_name + ";");
+    write_line(out, indent_level, "}");
+}
+
 // Generate one supported scalar-element fixed-array value decoder.
 void generate_array_scalar_value_decode(
     std::ostringstream& out, const metadata::FieldModel& field,
@@ -727,6 +805,18 @@ void generate_vector_scalar_field_decode(
     write_line(out, 2, "}");
 }
 
+// Generate one required user-defined-element vector field decoder.
+void generate_vector_user_defined_field_decode(
+    std::ostringstream& out, const metadata::FieldModel& field) {
+    const std::string member_name = "value." + field.name;
+    write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
+    generate_vector_user_defined_value_decode(out, field, field.type,
+                                              "field.value()", member_name, 3);
+    write_line(out, 3, "has_" + field.name + " = true;");
+    write_line(out, 3, "continue;");
+    write_line(out, 2, "}");
+}
+
 // Generate one required scalar-element fixed-array field decoder.
 void generate_array_scalar_field_decode(
     std::ostringstream& out, const metadata::FieldModel& field,
@@ -780,7 +870,12 @@ void generate_field_decode(std::ostringstream& out,
         generate_scalar_field_decode(out, field, enums);
         return;
     case metadata::FieldTypeKind::Vector:
-        generate_vector_scalar_field_decode(out, field, enums);
+        if (field.type.arguments[0].kind ==
+            metadata::FieldTypeKind::UserDefined) {
+            generate_vector_user_defined_field_decode(out, field);
+        } else {
+            generate_vector_scalar_field_decode(out, field, enums);
+        }
         return;
     case metadata::FieldTypeKind::Array:
         generate_array_scalar_field_decode(out, field, enums);
@@ -884,7 +979,8 @@ void generate_root_decode_function(std::ostringstream& out,
         << "    ::simdjson::padded_string padded_input(input);\n"
         << "    ::simdjson::ondemand::parser parser;\n"
         << "\n"
-        << "    // 2. Start one On-Demand document and read its root object.\n"
+        << "    // 2. Start one On-Demand document and read its root "
+           "object.\n"
         << "    ::simdjson::ondemand::document document;\n"
         << "    auto runtime_error = "
            "parser.iterate(padded_input).get(document);\n"
@@ -897,7 +993,8 @@ void generate_root_decode_function(std::ostringstream& out,
         << "    ::simdjson::ondemand::object object;\n"
         << "    runtime_error = document.get_object().get(object);\n"
         << "    if (runtime_error) {\n"
-        << "        error.code = runtime_error == ::simdjson::INCORRECT_TYPE\n"
+        << "        error.code = runtime_error == "
+           "::simdjson::INCORRECT_TYPE\n"
         << "                         ? DecodeErrorCode::expected_object\n"
         << "                         : DecodeErrorCode::syntax_error;\n"
         << "        error.runtime_error = runtime_error;\n"
@@ -910,7 +1007,8 @@ void generate_root_decode_function(std::ostringstream& out,
         << "        return std::nullopt;\n"
         << "    }\n"
         << "\n"
-        << "    // 4. Reject non-whitespace content after the root object.\n"
+        << "    // 4. Reject non-whitespace content after the root "
+           "object.\n"
         << "    if (!document.at_end()) {\n"
         << "        error.code = DecodeErrorCode::trailing_content;\n"
         << "        error.runtime_error = ::simdjson::TRAILING_CONTENT;\n"
