@@ -118,13 +118,14 @@ bool is_supported_array_field(const metadata::FieldType& type,
            is_supported_scalar_type(type.arguments[0], enums);
 }
 
-// Return whether a string-keyed map has a complete scalar value decoder.
+// Return whether a string-keyed map has a complete value decoder.
 bool is_supported_map_field(const metadata::FieldType& type,
                             const std::vector<metadata::EnumModel>& enums) {
     return type.kind == metadata::FieldTypeKind::Map &&
            type.arguments.size() == 2 &&
            type.arguments[0].kind == metadata::FieldTypeKind::String &&
-           is_supported_scalar_type(type.arguments[1], enums);
+           (is_supported_scalar_type(type.arguments[1], enums) ||
+            is_supported_user_defined_field(type.arguments[1]));
 }
 
 // Return whether an optional field has a complete generated decoder.
@@ -382,6 +383,17 @@ void generate_prepend_index_error_path(std::ostringstream& out,
     write_line(out, indent_level + 1,
                "{DecodePathSegmentKind::index, \"\", " + index_expression +
                    "});");
+}
+
+// Generate one structured map-key path prepend.
+void generate_prepend_map_key_error_path(std::ostringstream& out,
+                                         const std::string& key_expression,
+                                         std::size_t indent_level) {
+    write_line(out, indent_level, "error.path.insert(");
+    write_line(out, indent_level + 1, "error.path.begin(),");
+    write_line(out, indent_level + 1,
+               "{DecodePathSegmentKind::field, std::string(" + key_expression +
+                   "), 0});");
 }
 
 // Generate one bool value decoder.
@@ -784,16 +796,96 @@ void generate_map_scalar_value_decode(
     write_line(out, indent_level, "}");
 }
 
-// Generate one required string-keyed scalar-value map field decoder.
-void generate_map_scalar_field_decode(
+// Generate one string-keyed user-defined-value map decoder.
+void generate_map_user_defined_value_decode(
     std::ostringstream& out, const metadata::FieldModel& field,
-    const std::vector<metadata::EnumModel>& enums) {
+    const metadata::FieldType& map_type,
+    const std::string& simdjson_value_expression,
+    const std::string& target_expression, std::size_t indent_level) {
+    const auto& value_type = map_type.arguments[1];
+    const std::string object_name = "decoded_" + field.name + "_object";
+    const std::string entry_name = "decoded_" + field.name + "_entry";
+    const std::string key_name = "decoded_" + field.name + "_key";
+    const std::string child_object_name =
+        "decoded_" + field.name + "_child_object";
+    const std::string value_name = "decoded_" + field.name + "_value";
+
+    write_line(out, indent_level,
+               "::simdjson::ondemand::object " + object_name + ";");
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression +
+                   ".get_object().get(" + object_name + ");");
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::expected_object;");
+    generate_value_error_path(out, field, indent_level + 1, std::nullopt);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
+
+    write_line(out, indent_level, target_expression + ".clear();");
+    write_line(out, indent_level,
+               "for (auto " + entry_name + " : " + object_name + ") {");
+    write_line(out, indent_level + 1, "std::string_view " + key_name + ";");
+    write_line(out, indent_level + 1,
+               "runtime_error = " + entry_name + ".unescaped_key().get(" +
+                   key_name + ");");
+    write_line(out, indent_level + 1, "if (runtime_error) {");
+    write_line(out, indent_level + 2,
+               "error.code = DecodeErrorCode::syntax_error;");
+    generate_field_error_path(out, field, indent_level + 2);
+    write_line(out, indent_level + 2, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 2, "return false;");
+    write_line(out, indent_level + 1, "}");
+
+    write_line(out, indent_level + 1,
+               "::simdjson::ondemand::object " + child_object_name + ";");
+    write_line(out, indent_level + 1,
+               "runtime_error = " + entry_name + ".value().get_object().get(" +
+                   child_object_name + ");");
+    write_line(out, indent_level + 1, "if (runtime_error) {");
+    write_line(out, indent_level + 2,
+               "error.code = DecodeErrorCode::expected_object;");
+    generate_value_error_path(out, field, indent_level + 2, std::nullopt,
+                              key_name);
+    write_line(out, indent_level + 2, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 2, "return false;");
+    write_line(out, indent_level + 1, "}");
+
+    const auto value_type_name = metadata_type_name(value_type);
+    const auto generated_value_type_name = value_type_name.rfind("::", 0) == 0
+                                               ? value_type_name
+                                               : "::" + value_type_name;
+
+    write_line(out, indent_level + 1,
+               generated_value_type_name + " " + value_name + "{};");
+    write_line(out, indent_level + 1,
+               "if (!detail::decode_object(" + child_object_name + ", " +
+                   value_name + ", error)) {");
+    generate_prepend_map_key_error_path(out, key_name, indent_level + 2);
+    generate_prepend_field_error_path(out, field, indent_level + 2);
+    write_line(out, indent_level + 2, "return false;");
+    write_line(out, indent_level + 1, "}");
+    write_line(out, indent_level + 1,
+               target_expression + "[std::string(" + key_name +
+                   ")] = " + value_name + ";");
+    write_line(out, indent_level, "}");
+}
+
+// Generate one required string-keyed scalar-value map field decoder.
+void generate_map_field_decode(std::ostringstream& out,
+                               const metadata::FieldModel& field,
+                               const std::vector<metadata::EnumModel>& enums) {
     const std::string member_name = "value." + field.name;
     write_line(out, 2, "if (key == \"" + field.json.name + "\") {");
 
-    generate_map_scalar_value_decode(out, field, field.type, enums,
-                                     "field.value()", member_name, 3);
-
+    if (field.type.arguments[1].kind == metadata::FieldTypeKind::UserDefined) {
+        generate_map_user_defined_value_decode(out, field, field.type,
+                                               "field.value()", member_name, 3);
+    } else {
+        generate_map_scalar_value_decode(out, field, field.type, enums,
+                                         "field.value()", member_name, 3);
+    }
     write_line(out, 3, "has_" + field.name + " = true;");
     write_line(out, 3, "continue;");
     write_line(out, 2, "}");
@@ -985,7 +1077,7 @@ void generate_field_decode(std::ostringstream& out,
         generate_array_scalar_field_decode(out, field, enums);
         return;
     case metadata::FieldTypeKind::Map:
-        generate_map_scalar_field_decode(out, field, enums);
+        generate_map_field_decode(out, field, enums);
         return;
     case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::Optional:

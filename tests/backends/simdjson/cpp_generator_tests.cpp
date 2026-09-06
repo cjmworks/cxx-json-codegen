@@ -206,6 +206,33 @@ ProjectModel make_map_project() {
     return project;
 }
 
+// Build one model containing a string-keyed map of generated models.
+ProjectModel make_map_user_defined_project() {
+    TypeModel item;
+    item.name = "MapItem";
+    item.qualified_name = "MapItem";
+    item.fields = {
+        make_required_field("id", FieldTypeKind::SignedInteger, "std::int64_t"),
+    };
+
+    auto items_field = make_required_field(
+        "items", FieldTypeKind::Map, "std::map<std::string, MapItem>");
+    items_field.type.qualified_name = "std::map";
+    items_field.type.arguments = {
+        FieldType{FieldTypeKind::String, "std::string", "std::string"},
+        FieldType{FieldTypeKind::UserDefined, "MapItem", "MapItem"},
+    };
+
+    TypeModel catalog;
+    catalog.name = "Catalog";
+    catalog.qualified_name = "Catalog";
+    catalog.fields = {items_field};
+
+    ProjectModel project;
+    project.types = {item, catalog};
+    return project;
+}
+
 // Build one model containing an optional inner type outside the current
 // simdjson slice.
 ProjectModel make_optional_vector_project() {
@@ -779,6 +806,35 @@ int main() {
             read_file("tests/golden/simdjson_map.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson map header:\n" << result.header;
+        }
+        assert(result.header == expected);
+    }
+    {
+        const auto result = cjm::generator::simdjson::generate_header(
+            make_map_user_defined_project());
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find(
+                   "::simdjson::ondemand::object decoded_items_child_object;") !=
+               std::string::npos);
+        assert(result.header.find("::MapItem decoded_items_value{};") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "detail::decode_object(decoded_items_child_object, "
+                   "decoded_items_value, error)") != std::string::npos);
+        assert(result.header.find(
+                   "{DecodePathSegmentKind::field, "
+                   "std::string(decoded_items_key), 0}") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "value.items[std::string(decoded_items_key)] = "
+                   "decoded_items_value;") != std::string::npos);
+
+        const auto expected = read_file(
+            "tests/golden/simdjson_map_user_defined.expected.cjm.hpp");
+        if (result.header != expected) {
+            std::cerr << "generated simdjson map-of-model header:\n"
+                      << result.header;
         }
         assert(result.header == expected);
     }
