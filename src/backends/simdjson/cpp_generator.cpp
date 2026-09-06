@@ -125,9 +125,7 @@ bool is_supported_map_field(const metadata::FieldType& type,
            type.arguments.size() == 2 &&
            type.arguments[0].kind == metadata::FieldTypeKind::String &&
            (is_supported_scalar_type(type.arguments[1], enums) ||
-            (type.arguments[1].kind == metadata::FieldTypeKind::Vector &&
-             type.arguments[1].arguments.size() == 1 &&
-             is_supported_scalar_type(type.arguments[1].arguments[0], enums)) ||
+            is_supported_vector_field(type.arguments[1], enums) ||
             is_supported_user_defined_field(type.arguments[1]));
 }
 
@@ -688,7 +686,8 @@ void generate_vector_user_defined_value_decode(
     std::ostringstream& out, const metadata::FieldModel& field,
     const metadata::FieldType& vector_type,
     const std::string& simdjson_value_expression,
-    const std::string& target_expression, std::size_t indent_level) {
+    const std::string& target_expression, std::size_t indent_level,
+    const std::optional<std::string>& map_key_expression = std::nullopt) {
     const auto& element_type = vector_type.arguments[0];
     const std::string array_name = "decoded_" + field.name + "_array";
     const std::string index_name = "decoded_" + field.name + "_index";
@@ -704,7 +703,8 @@ void generate_vector_user_defined_value_decode(
     write_line(out, indent_level, "if (runtime_error) {");
     write_line(out, indent_level + 1,
                "error.code = DecodeErrorCode::expected_array;");
-    generate_value_error_path(out, field, indent_level + 1, std::nullopt);
+    generate_value_error_path(out, field, indent_level + 1, std::nullopt,
+                              map_key_expression);
     write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
     write_line(out, indent_level + 1, "return false;");
     write_line(out, indent_level, "}");
@@ -722,7 +722,8 @@ void generate_vector_user_defined_value_decode(
     write_line(out, indent_level + 1, "if (runtime_error) {");
     write_line(out, indent_level + 2,
                "error.code = DecodeErrorCode::expected_object;");
-    generate_value_error_path(out, field, indent_level + 2, index_name);
+    generate_value_error_path(out, field, indent_level + 2, index_name,
+                              map_key_expression);
     write_line(out, indent_level + 2, "error.runtime_error = runtime_error;");
     write_line(out, indent_level + 2, "return false;");
     write_line(out, indent_level + 1, "}");
@@ -738,6 +739,10 @@ void generate_vector_user_defined_value_decode(
                    ", error)) {");
 
     generate_prepend_index_error_path(out, index_name, indent_level + 2);
+    if (map_key_expression.has_value()) {
+        generate_prepend_map_key_error_path(out, *map_key_expression,
+                                            indent_level + 2);
+    }
     generate_prepend_field_error_path(out, field, indent_level + 2);
 
     write_line(out, indent_level + 2, "return false;");
@@ -795,9 +800,16 @@ void generate_map_value_decode(std::ostringstream& out,
     write_line(out, indent_level + 1,
                metadata_type_name(value_type) + " " + value_name + "{};");
     if (value_type.kind == metadata::FieldTypeKind::Vector) {
-        generate_vector_scalar_value_decode(out, field, value_type, enums,
-                                            entry_name + ".value()", value_name,
-                                            indent_level + 1, key_name);
+        if (value_type.arguments[0].kind ==
+            metadata::FieldTypeKind::UserDefined) {
+            generate_vector_user_defined_value_decode(
+                out, field, value_type, entry_name + ".value()", value_name,
+                indent_level + 1, key_name);
+        } else {
+            generate_vector_scalar_value_decode(
+                out, field, value_type, enums, entry_name + ".value()",
+                value_name, indent_level + 1, key_name);
+        }
     } else {
         generate_scalar_value_decode(out, field, value_type, enums,
                                      entry_name + ".value()", value_name,

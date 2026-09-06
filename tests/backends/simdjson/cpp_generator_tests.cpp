@@ -266,6 +266,46 @@ ProjectModel make_map_vector_project() {
     return project;
 }
 
+// Build one model containing a string-keyed map of generated-model vectors.
+ProjectModel make_map_vector_user_defined_project() {
+    TypeModel item;
+    item.name = "GroupedItem";
+    item.qualified_name = "GroupedItem";
+    item.fields = {
+        make_required_field("id", FieldTypeKind::SignedInteger, "std::int64_t"),
+    };
+
+    FieldType item_type{
+        FieldTypeKind::UserDefined,
+        "GroupedItem",
+        "GroupedItem",
+    };
+    FieldType vector_type{
+        FieldTypeKind::Vector,
+        "std::vector<GroupedItem>",
+        "std::vector",
+        {item_type},
+    };
+
+    auto groups_field = make_required_field(
+        "groups", FieldTypeKind::Map,
+        "std::map<std::string, std::vector<GroupedItem>>");
+    groups_field.type.qualified_name = "std::map";
+    groups_field.type.arguments = {
+        FieldType{FieldTypeKind::String, "std::string", "std::string"},
+        vector_type,
+    };
+
+    TypeModel type;
+    type.name = "GroupedCatalog";
+    type.qualified_name = "GroupedCatalog";
+    type.fields = {groups_field};
+
+    ProjectModel project;
+    project.types = {item, type};
+    return project;
+}
+
 // Build one model containing an optional inner type outside the current
 // simdjson slice.
 ProjectModel make_optional_vector_project() {
@@ -897,6 +937,39 @@ int main() {
             read_file("tests/golden/simdjson_map_vector.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson map-of-vector header:\n"
+                      << result.header;
+        }
+        assert(result.header == expected);
+    }
+    {
+        const auto result = cjm::generator::simdjson::generate_header(
+            make_map_vector_user_defined_project());
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find(
+                   "for (auto decoded_groups_entry : decoded_groups_object)") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "for (auto decoded_groups_element : "
+                   "decoded_groups_array)") != std::string::npos);
+        assert(result.header.find("::GroupedItem decoded_groups_value{};") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "detail::decode_object(decoded_groups_object, "
+                   "decoded_groups_value, error)") != std::string::npos);
+        assert(result.header.find(
+                   "{DecodePathSegmentKind::field, "
+                   "std::string(decoded_groups_key), 0}") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "{DecodePathSegmentKind::index, \"\", "
+                   "decoded_groups_index}") != std::string::npos);
+
+        const auto expected = read_file(
+            "tests/golden/"
+            "simdjson_map_vector_user_defined.expected.cjm.hpp");
+        if (result.header != expected) {
+            std::cerr << "generated simdjson map-of-model-vector header:\n"
                       << result.header;
         }
         assert(result.header == expected);
