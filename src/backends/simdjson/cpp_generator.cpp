@@ -125,6 +125,9 @@ bool is_supported_map_field(const metadata::FieldType& type,
            type.arguments.size() == 2 &&
            type.arguments[0].kind == metadata::FieldTypeKind::String &&
            (is_supported_scalar_type(type.arguments[1], enums) ||
+            (type.arguments[1].kind == metadata::FieldTypeKind::Vector &&
+             type.arguments[1].arguments.size() == 1 &&
+             is_supported_scalar_type(type.arguments[1].arguments[0], enums)) ||
             is_supported_user_defined_field(type.arguments[1]));
 }
 
@@ -355,11 +358,11 @@ void generate_value_error_path(
     const std::optional<std::string>& index_expression,
     const std::optional<std::string>& map_key_expression = std::nullopt) {
     generate_field_error_path(out, field, indent_level);
-    if (index_expression.has_value()) {
-        generate_index_error_path(out, *index_expression, indent_level);
-    }
     if (map_key_expression.has_value()) {
         generate_map_key_error_path(out, *map_key_expression, indent_level);
+    }
+    if (index_expression.has_value()) {
+        generate_index_error_path(out, *index_expression, indent_level);
     }
 }
 
@@ -639,7 +642,8 @@ void generate_vector_scalar_value_decode(
     const metadata::FieldType& vector_type,
     const std::vector<metadata::EnumModel>& enums,
     const std::string& simdjson_value_expression,
-    const std::string& target_expression, std::size_t indent_level) {
+    const std::string& target_expression, std::size_t indent_level,
+    const std::optional<std::string>& map_key_expression = std::nullopt) {
 
     const auto& element_type = vector_type.arguments[0];
     const std::string array_name = "decoded_" + field.name + "_array";
@@ -655,7 +659,8 @@ void generate_vector_scalar_value_decode(
     write_line(out, indent_level, "if (runtime_error) {");
     write_line(out, indent_level + 1,
                "error.code = DecodeErrorCode::expected_array;");
-    generate_value_error_path(out, field, indent_level + 1, std::nullopt);
+    generate_value_error_path(out, field, indent_level + 1, std::nullopt,
+                              map_key_expression);
     write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
     write_line(out, indent_level + 1, "return false;");
     write_line(out, indent_level, "}");
@@ -669,7 +674,8 @@ void generate_vector_scalar_value_decode(
                scalar_value_type_name(element_type) + " " + value_name + "{};");
 
     generate_scalar_value_decode(out, field, element_type, enums, element_name,
-                                 value_name, indent_level + 1, index_name);
+                                 value_name, indent_level + 1, index_name,
+                                 map_key_expression);
 
     write_line(out, indent_level + 1,
                target_expression + ".push_back(" + value_name + ");");
@@ -743,18 +749,19 @@ void generate_vector_user_defined_value_decode(
     write_line(out, indent_level, "}");
 }
 
-// Generate one string-keyed scalar-value map decoder.
-void generate_map_scalar_value_decode(
-    std::ostringstream& out, const metadata::FieldModel& field,
-    const metadata::FieldType& map_type,
-    const std::vector<metadata::EnumModel>& enums,
-    const std::string& simdjson_value_expression,
-    const std::string& target_expression, std::size_t indent_level) {
+// Generate one string-keyed map decoder.
+void generate_map_value_decode(std::ostringstream& out,
+                               const metadata::FieldModel& field,
+                               const metadata::FieldType& map_type,
+                               const std::vector<metadata::EnumModel>& enums,
+                               const std::string& simdjson_value_expression,
+                               const std::string& target_expression,
+                               std::size_t indent_level) {
     const auto& value_type = map_type.arguments[1];
     const std::string object_name = "decoded_" + field.name + "_object";
     const std::string entry_name = "decoded_" + field.name + "_entry";
     const std::string key_name = "decoded_" + field.name + "_key";
-    const std::string value_name = "decoded_" + field.name + "_value";
+    const std::string value_name = "decoded_" + field.name + "_mapped_value";
 
     write_line(out, indent_level,
                "::simdjson::ondemand::object " + object_name + ";");
@@ -786,10 +793,16 @@ void generate_map_scalar_value_decode(
     write_line(out, indent_level + 1, "}");
 
     write_line(out, indent_level + 1,
-               scalar_value_type_name(value_type) + " " + value_name + "{};");
-    generate_scalar_value_decode(out, field, value_type, enums,
-                                 entry_name + ".value()", value_name,
-                                 indent_level + 1, std::nullopt, key_name);
+               metadata_type_name(value_type) + " " + value_name + "{};");
+    if (value_type.kind == metadata::FieldTypeKind::Vector) {
+        generate_vector_scalar_value_decode(out, field, value_type, enums,
+                                            entry_name + ".value()", value_name,
+                                            indent_level + 1, key_name);
+    } else {
+        generate_scalar_value_decode(out, field, value_type, enums,
+                                     entry_name + ".value()", value_name,
+                                     indent_level + 1, std::nullopt, key_name);
+    }
     write_line(out, indent_level + 1,
                target_expression + "[std::string(" + key_name +
                    ")] = " + value_name + ";");
@@ -883,8 +896,8 @@ void generate_map_field_decode(std::ostringstream& out,
         generate_map_user_defined_value_decode(out, field, field.type,
                                                "field.value()", member_name, 3);
     } else {
-        generate_map_scalar_value_decode(out, field, field.type, enums,
-                                         "field.value()", member_name, 3);
+        generate_map_value_decode(out, field, field.type, enums,
+                                  "field.value()", member_name, 3);
     }
     write_line(out, 3, "has_" + field.name + " = true;");
     write_line(out, 3, "continue;");

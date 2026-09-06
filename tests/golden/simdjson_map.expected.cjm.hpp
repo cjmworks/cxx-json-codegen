@@ -104,8 +104,8 @@ inline bool decode_object(
                     error.runtime_error = runtime_error;
                     return false;
                 }
-                std::int32_t decoded_counts_value{};
-                using target_type = decltype(decoded_counts_value);
+                std::int32_t decoded_counts_mapped_value{};
+                using target_type = decltype(decoded_counts_mapped_value);
                 std::int64_t decoded_counts = 0;
                 runtime_error = decoded_counts_entry.value().get_int64().get(decoded_counts);
                 if (runtime_error) {
@@ -131,8 +131,8 @@ inline bool decode_object(
                     return false;
                 }
 
-                decoded_counts_value = static_cast<target_type>(decoded_counts);
-                value.counts[std::string(decoded_counts_key)] = decoded_counts_value;
+                decoded_counts_mapped_value = static_cast<target_type>(decoded_counts);
+                value.counts[std::string(decoded_counts_key)] = decoded_counts_mapped_value;
             }
             has_counts = true;
             continue;
@@ -159,7 +159,7 @@ inline bool decode_object(
                     error.runtime_error = runtime_error;
                     return false;
                 }
-                std::string decoded_labels_value{};
+                std::string decoded_labels_mapped_value{};
                 std::string_view decoded_labels_view;
                 runtime_error = decoded_labels_entry.value().get_string().get(decoded_labels_view);
                 if (runtime_error) {
@@ -171,8 +171,8 @@ inline bool decode_object(
                     error.runtime_error = runtime_error;
                     return false;
                 }
-                decoded_labels_value.assign(decoded_labels_view.begin(), decoded_labels_view.end());
-                value.labels[std::string(decoded_labels_key)] = decoded_labels_value;
+                decoded_labels_mapped_value.assign(decoded_labels_view.begin(), decoded_labels_view.end());
+                value.labels[std::string(decoded_labels_key)] = decoded_labels_mapped_value;
             }
             has_labels = true;
             continue;

@@ -233,6 +233,39 @@ ProjectModel make_map_user_defined_project() {
     return project;
 }
 
+// Build one model containing a string-keyed map of scalar vectors.
+ProjectModel make_map_vector_project() {
+    FieldType element_type{
+        FieldTypeKind::SignedInteger,
+        "std::int32_t",
+        "std::int32_t",
+    };
+    FieldType vector_type{
+        FieldTypeKind::Vector,
+        "std::vector<std::int32_t>",
+        "std::vector",
+        {element_type},
+    };
+
+    auto groups_field = make_required_field(
+        "groups", FieldTypeKind::Map,
+        "std::map<std::string, std::vector<std::int32_t>>");
+    groups_field.type.qualified_name = "std::map";
+    groups_field.type.arguments = {
+        FieldType{FieldTypeKind::String, "std::string", "std::string"},
+        vector_type,
+    };
+
+    TypeModel type;
+    type.name = "MapVectorValues";
+    type.qualified_name = "MapVectorValues";
+    type.fields = {groups_field};
+
+    ProjectModel project;
+    project.types = {type};
+    return project;
+}
+
 // Build one model containing an optional inner type outside the current
 // simdjson slice.
 ProjectModel make_optional_vector_project() {
@@ -796,7 +829,7 @@ int main() {
                    "decoded_counts_key)") != std::string::npos);
         assert(result.header.find(
                    "value.counts[std::string(decoded_counts_key)] = "
-                   "decoded_counts_value;") != std::string::npos);
+                   "decoded_counts_mapped_value;") != std::string::npos);
         assert(result.header.find(
                    "{DecodePathSegmentKind::field, "
                    "std::string(decoded_counts_key), 0}") !=
@@ -834,6 +867,36 @@ int main() {
             "tests/golden/simdjson_map_user_defined.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson map-of-model header:\n"
+                      << result.header;
+        }
+        assert(result.header == expected);
+    }
+    {
+        const auto result = cjm::generator::simdjson::generate_header(
+            make_map_vector_project());
+        assert(result.success);
+        assert(result.error.empty());
+        assert(result.header.find(
+                   "for (auto decoded_groups_entry : decoded_groups_object)") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "for (auto decoded_groups_element : "
+                   "decoded_groups_array)") != std::string::npos);
+        assert(result.header.find(
+                   "value.groups[std::string(decoded_groups_key)] = "
+                   "decoded_groups_mapped_value;") != std::string::npos);
+        assert(result.header.find(
+                   "{DecodePathSegmentKind::field, "
+                   "std::string(decoded_groups_key), 0}") !=
+               std::string::npos);
+        assert(result.header.find(
+                   "{DecodePathSegmentKind::index, \"\", "
+                   "decoded_groups_index}") != std::string::npos);
+
+        const auto expected =
+            read_file("tests/golden/simdjson_map_vector.expected.cjm.hpp");
+        if (result.header != expected) {
+            std::cerr << "generated simdjson map-of-vector header:\n"
                       << result.header;
         }
         assert(result.header == expected);
