@@ -350,18 +350,71 @@ void generate_map_key_error_path(std::ostringstream& out,
                    "), 0});");
 }
 
+enum class GeneratedValuePathSegmentKind {
+    map_key,
+    index,
+};
+
+struct GeneratedValuePathSegment {
+    GeneratedValuePathSegmentKind kind;
+    std::string expression;
+};
+
+using GeneratedValuePath = std::vector<GeneratedValuePathSegment>;
+
+GeneratedValuePath extend_value_path(const GeneratedValuePath& path,
+                                     GeneratedValuePathSegmentKind kind,
+                                     const std::string& expression) {
+    auto extended_path = path;
+    extended_path.push_back({kind, expression});
+    return extended_path;
+}
+
+void generate_value_decode(std::ostringstream& out,
+                           const metadata::FieldModel& field,
+                           const metadata::FieldType& type,
+                           const std::vector<metadata::EnumModel>& enums,
+                           const std::string& simdjson_value_expression,
+                           const std::string& target_expression,
+                           std::size_t indent_level,
+                           const GeneratedValuePath& path);
+
+void generate_value_error_path(std::ostringstream& out,
+                               const metadata::FieldModel& field,
+                               std::size_t indent_level,
+                               const GeneratedValuePath& path) {
+
+    generate_field_error_path(out, field, indent_level);
+
+    for (const auto& segment : path) {
+        switch (segment.kind) {
+        case GeneratedValuePathSegmentKind::map_key:
+            generate_map_key_error_path(out, segment.expression, indent_level);
+            break;
+        case GeneratedValuePathSegmentKind::index:
+            generate_index_error_path(out, segment.expression, indent_level);
+            break;
+        }
+    }
+}
+
 void generate_value_error_path(
     std::ostringstream& out, const metadata::FieldModel& field,
     std::size_t indent_level,
     const std::optional<std::string>& index_expression,
     const std::optional<std::string>& map_key_expression = std::nullopt) {
-    generate_field_error_path(out, field, indent_level);
+    GeneratedValuePath path;
+
     if (map_key_expression.has_value()) {
-        generate_map_key_error_path(out, *map_key_expression, indent_level);
+        path = extend_value_path(path, GeneratedValuePathSegmentKind::map_key,
+                                 *map_key_expression);
     }
     if (index_expression.has_value()) {
-        generate_index_error_path(out, *index_expression, indent_level);
+        path = extend_value_path(path, GeneratedValuePathSegmentKind::index,
+                                 *index_expression);
     }
+
+    generate_value_error_path(out, field, indent_level, path);
 }
 
 // Generate one structured field path prepend.
