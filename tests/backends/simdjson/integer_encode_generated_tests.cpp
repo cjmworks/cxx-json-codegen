@@ -38,7 +38,7 @@ TEST_CASE("to_json.integer_values", "[simdjson][encoder]") {
             REQUIRE(*result == item.expected);
             REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
             REQUIRE(error.path.empty());
-            REQUIRE(error.std::runtime_error == ::simdjson::SUCCESS);
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
         }
     }
 }

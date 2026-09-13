@@ -211,6 +211,61 @@ from_json<::GroupedItem>(
 
 namespace cjm::simdjson::detail {
 
+inline bool encode_object(
+    ::simdjson::builder::string_builder& builder,
+    const ::GroupedItem& value,
+    EncodeError&) {
+    builder.start_object();
+    builder.escape_and_append_with_quotes("id");
+    builder.append_colon();
+    builder.append(value.id);
+    builder.end_object();
+    return true;
+}
+
+} // namespace cjm::simdjson::detail
+
+namespace cjm::simdjson {
+
+template <>
+inline std::optional<std::string>
+to_json<::GroupedItem>(
+    const ::GroupedItem& value,
+    EncodeError& error) {
+    error = {};
+    try {
+        ::simdjson::builder::string_builder builder;
+        const bool model_valid =
+            detail::encode_object(builder, value, error);
+        std::string_view view;
+        const auto runtime_error = builder.view().get(view);
+        if (runtime_error != ::simdjson::SUCCESS) {
+            error.path.clear();
+            error.code = EncodeErrorCode::output_failure;
+            error.runtime_error = runtime_error;
+            return std::nullopt;
+        }
+        if (!model_valid) {
+            return std::nullopt;
+        }
+        return std::string(view);
+    } catch (const std::bad_alloc&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::allocation_failure;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    } catch (const std::length_error&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::size_limit_exceeded;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    }
+}
+
+} // namespace cjm::simdjson
+
+namespace cjm::simdjson::detail {
+
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
     ::GroupedCatalog& value,
