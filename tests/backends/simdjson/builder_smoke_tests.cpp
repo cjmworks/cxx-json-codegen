@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <simdjson.h>
-
+#include <cstdint>
+#include <limits>
 #include <string_view>
 
 TEST_CASE("string_builder.writes_object_in_cpp17", "[simdjson][builder]") {
@@ -41,4 +42,28 @@ TEST_CASE("string_builder.appends_bool_value", "[simdjson][builder]") {
     std::string_view output;
     REQUIRE(builder.view().get(output) == ::simdjson::SUCCESS);
     REQUIRE(output == R"({"enabled":true})");
+}
+
+TEST_CASE("string_builder.appends_signed_integer", "[simdjson][builder]") {
+    const struct {
+        const char* name;
+        std::int64_t value;
+        std::string_view expected;
+    } cases[] = {
+        {"zero", 0, "0"},
+        {"negative", -15, "-15"},
+        {"minimum", std::numeric_limits<std::int64_t>::min(),
+         "-9223372036854775808"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            ::simdjson::builder::string_builder builder;
+            builder.append(item.value);
+
+            std::string_view output;
+            REQUIRE(builder.view().get(output) == ::simdjson::SUCCESS);
+            REQUIRE(output == item.expected);
+        }
+    }
 }
