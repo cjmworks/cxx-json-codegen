@@ -49,7 +49,7 @@ TEST_CASE("generate_encode_error_model.emits_public_contract",
     }
 }
 
-TEST_CASE("generate_bool_object_encode_function.writes_two_fields",
+TEST_CASE("generate_scalar_object_encode_function.writes_two_fields",
           "[simdjson][encoder]") {
     cjm::metadata::TypeModel type;
     type.name = "BoolValues";
@@ -67,7 +67,7 @@ TEST_CASE("generate_bool_object_encode_function.writes_two_fields",
     type.fields = {enabled, visible};
 
     std::ostringstream out;
-    cjm::generator::simdjson::detail::generate_bool_object_encode_function(
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
         out, type);
 
     const std::string expected = R"(namespace cjm::simdjson::detail {

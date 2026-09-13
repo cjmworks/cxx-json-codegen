@@ -67,3 +67,27 @@ TEST_CASE("string_builder.appends_signed_integer", "[simdjson][builder]") {
         }
     }
 }
+
+TEST_CASE("string_builder.appends_unsigned_integer", "[simdjson][builder]") {
+    const struct {
+        const char* name;
+        std::uint64_t value;
+        std::string_view expected;
+    } cases[] = {
+        {"zero", 0, "0"},
+        {"positive", 15, "15"},
+        {"maximum", std::numeric_limits<std::uint64_t>::max(),
+         "18446744073709551615"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            ::simdjson::builder::string_builder builder;
+            builder.append(item.value);
+
+            std::string_view output;
+            REQUIRE(builder.view().get(output) == ::simdjson::SUCCESS);
+            REQUIRE(output == item.expected);
+        }
+    }
+}

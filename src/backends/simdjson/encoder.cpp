@@ -41,9 +41,9 @@ void generate_encode_error_model(std::ostringstream& out) {
         << "#endif\n";
 }
 
-// Generate an object encoder for a model with boolean fields.
-void generate_bool_object_encode_function(std::ostringstream& out,
-                                          const metadata::TypeModel& type) {
+// Generate an object encoder for supported scalar fields.
+void generate_scalar_object_encode_function(std::ostringstream& out,
+                                            const metadata::TypeModel& type) {
     const auto& name =
         type.qualified_name.empty() ? type.name : type.qualified_name;
     const auto cpp_type = name.rfind("::", 0) == 0 ? name : "::" + name;
@@ -57,7 +57,7 @@ void generate_bool_object_encode_function(std::ostringstream& out,
         << "    EncodeError&) {\n"
         << "    builder.start_object();\n";
 
-    // 2. Gnerate writes for participating boolean fields.
+    // 2. Gnerate writes for participating scalar fields.
     bool first_field = true;
     for (const auto& field : type.fields) {
         if (field.json.ignored) {

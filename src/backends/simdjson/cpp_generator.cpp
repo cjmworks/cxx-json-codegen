@@ -50,7 +50,7 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
         }
         if (bool_only) {
             header << "\n";
-            detail::generate_bool_object_encode_function(header, type);
+            detail::generate_scalar_object_encode_function(header, type);
             header << "\n";
             detail::generate_root_encode_function(header, type);
         }
