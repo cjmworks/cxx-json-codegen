@@ -1,5 +1,5 @@
+#include "backends/simdjson/cpp_generator.hpp"
 #include "backends/simdjson/encoder.h"
-
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
@@ -91,4 +91,47 @@ inline bool encode_object(
 } // namespace cjm::simdjson::detail
 )";
     REQUIRE(out.str() == expected);
+}
+
+TEST_CASE("generate_header.encodes_bool_and_integer_fields",
+          "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    TypeModel type;
+    type.name = "Counters";
+
+    const struct {
+        const char* name;
+        FieldTypeKind kind;
+        const char* spelling;
+    } fields[] = {
+        {"enabled", FieldTypeKind::Bool, "bool"},
+        {"count", FieldTypeKind::SignedInteger, "std::int64_t"},
+        {"limits", FieldTypeKind::UnsignedInteger, "std::uint64_t"},
+    };
+
+    for (const auto& item : fields) {
+        FieldModel field;
+        field.name = item.name;
+        field.json.name = item.name;
+        field.type.kind = item.kind;
+        field.type.spelling = item.spelling;
+        type.fields.push_back(field);
+    }
+
+    ProjectModel project;
+    project.types.push_back(type);
+    const auto result = cjm::generator::simdjson::generate_header(project);
+
+    INFO(result.error);
+    REQUIRE(result.success);
+    REQUIRE(result.header.find("to_json<::Counters>") != std::string::npos);
+
+    for (const auto& item : fields) {
+        DYNAMIC_SECTION(item.name) {
+            const auto expected =
+                std::string("builder.append(value.") + item.name + ");";
+            REQUIRE(result.header.find(expected) != std::string::npos);
+        }
+    }
 }

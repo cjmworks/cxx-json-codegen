@@ -45,7 +45,7 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
             if (field.json.ignored) {
                 continue;
             }
-            const auto kind == field.type.kind;
+            const auto kind = field.type.kind;
             if (kind != metadata::FieldTypeKind::Bool &&
                 kind != metadata::FieldTypeKind::SignedInteger &&
                 kind != metadata::FieldTypeKind::UnsignedInteger) {
