@@ -40,15 +40,20 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
         detail::generate_object_decode_function(header, type, project.enums);
         header << "\n";
         detail::generate_root_decode_function(header, type);
-        bool bool_only = true;
+        bool scalar_only = true;
         for (const auto& field : type.fields) {
-            if (!field.json.ignored &&
-                field.type.kind != metadata::FieldTypeKind::Bool) {
-                bool_only = false;
+            if (field.json.ignored) {
+                continue;
+            }
+            const auto kind == field.type.kind;
+            if (kind != metadata::FieldTypeKind::Bool &&
+                kind != metadata::FieldTypeKind::SignedInteger &&
+                kind != metadata::FieldTypeKind::UnsignedInteger) {
+                scalar_only = false;
                 break;
             }
         }
-        if (bool_only) {
+        if (scalar_only) {
             header << "\n";
             detail::generate_scalar_object_encode_function(header, type);
             header << "\n";
