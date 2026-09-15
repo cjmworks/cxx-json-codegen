@@ -547,7 +547,23 @@ void generate_floating_point_value_decode(
     write_line(out, indent_level + 1, "return false;");
     write_line(out, indent_level, "}");
 
-    // 3. TODO: Check the target range and assign the decoded vale.
+    // 3. Check the target range and assign the decoded vale.
+    write_line(out, indent_level,
+               "const double target_max = static_cast<double>(");
+    write_line(out, indent_level + 1,
+               "(std::numeric_limits<target_type>::max)());");
+    write_line(out, indent_level,
+               "if (" + decoded_name + " < -target_max || " + decoded_name +
+                   " > target_max) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::floating_point_overflow;");
+    generate_value_error_path(out, field, indent_level + 1, path);
+    write_line(out, indent_level + 1,
+               "error.runtime_error = ::simdjson::SUCCESS;");
+    write_line(out, indent_level, "}");
+    write_line(out, indent_level,
+               target_expression + " = static_cast<target_type>(" +
+                   decoded_name + ");");
 }
 
 // Generate one enum string value decoder.
