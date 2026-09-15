@@ -522,6 +522,34 @@ void generate_integer_value_decode(std::ostringstream& out,
                    decoded_name + ");");
 }
 
+// Generate one floating-point value decoder.
+void generate_floating_point_value_decode(
+    std::ostringstream& out, const metadata::FieldModel& field,
+    const std::string& simdjson_value_expression,
+    const std::string& target_expression, std::size_t indent_level,
+    const GeneratedValuePath& path) {
+    const std::string decoded_name = "decoded_" + field.name;
+
+    // 1. Read the JSON number into a double.
+    write_line(out, indent_level,
+               "using target_type = decltype(" + target_expression + ");");
+    write_line(out, indent_level, "double " + decoded_name + " = 0;");
+    write_line(out, indent_level,
+               "runtime_error = " + simdjson_value_expression +
+                   ".get_double().get(" + decoded_name + ");");
+
+    // 2. Report a failed number read with its value path.
+    write_line(out, indent_level, "if (runtime_error) {");
+    write_line(out, indent_level + 1,
+               "error.code = DecodeErrorCode::expected_number;");
+    generate_value_error_path(out, field, indent_level + 1, path);
+    write_line(out, indent_level + 1, "error.runtime_error = runtime_error;");
+    write_line(out, indent_level + 1, "return false;");
+    write_line(out, indent_level, "}");
+
+    // 3. TODO: Check the target range and assign the decoded vale.
+}
+
 // Generate one enum string value decoder.
 void generate_enum_value_decode(std::ostringstream& out,
                                 const metadata::FieldModel& field,
