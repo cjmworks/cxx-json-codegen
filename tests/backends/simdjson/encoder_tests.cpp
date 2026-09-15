@@ -75,7 +75,7 @@ TEST_CASE("generate_scalar_object_encode_function.writes_two_fields",
 inline bool encode_object(
     ::simdjson::builder::string_builder& builder,
     const ::BoolValues& value,
-    EncodeError&) {
+    EncodeError& error) {
     builder.start_object();
     builder.escape_and_append_with_quotes("active");
     builder.append_colon();
@@ -134,4 +134,37 @@ TEST_CASE("generate_header.encodes_bool_and_integer_fields",
             REQUIRE(result.header.find(expected) != std::string::npos);
         }
     }
+}
+
+TEST_CASE("float.guard", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    TypeModel type;
+    type.name = "Quote";
+
+    FieldModel field;
+    field.name = "price";
+    field.json.name = "cost";
+    field.type.kind = FieldTypeKind::FloatingPoint;
+    field.type.spelling = "double";
+    type.fields.push_back(field);
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type);
+    const auto code = out.str();
+
+    const std::string guard = R"(    if (!std::isfinite(value.price)) {
+        error.code = EncodeErrorCode::non_finite_number;
+        error.path = {{EncodePathSegmentKind::field, "cost", 0}};
+        error.runtime_error = ::simdjson::SUCCESS;
+        return false;
+    }
+)";
+    const auto guard_pos = code.find(guard);
+    const auto write_pos = code.find("builder.append(value.price);");
+
+    REQUIRE(guard_pos != std::string::npos);
+    REQUIRE(write_pos != std::string::npos);
+    REQUIRE(guard_pos + guard.size() <= write_pos);
 }

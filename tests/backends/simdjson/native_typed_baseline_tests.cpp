@@ -113,3 +113,28 @@ TEST_CASE("encode_bool_value.returns_owned_json", "[simdjson][baseline]") {
     REQUIRE(output.has_value());
     REQUIRE(*output == R"({"enabled":true})");
 }
+
+TEST_CASE("double.values", "[simdjson][baseline]") {
+    const struct {
+        const char* name;
+        std::string_view json;
+        double expected;
+    } cases[] = {
+        {"fraction", R"({"value":1.5})", 1.5},
+        {"integer", R"({"value":42})", 42.0},
+        {"exponent", R"({"value":-2.5e2})", -250.0},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            const simdjson::padded_string input(item.json);
+            simdjson::ondemand::parser parser;
+            simdjson::ondemand::document document;
+            REQUIRE(parser.iterate(input).get(document) == simdjson::SUCCESS);
+            double value = 0;
+            REQUIRE(document["value"].get_double().get(value) ==
+                    simdjson::SUCCESS);
+            REQUIRE(value == item.expected);
+        }
+    }
+}
