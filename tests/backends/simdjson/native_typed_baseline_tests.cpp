@@ -138,3 +138,27 @@ TEST_CASE("double.values", "[simdjson][baseline]") {
         }
     }
 }
+
+TEST_CASE("double.wrong_type", "[simdjson][baseline]") {
+    const struct {
+        const char* name;
+        std::string_view json;
+    } cases[] = {
+        {"string", R"({"value":"1.5"})"},
+        {"boolean", R"({"value":true})"},
+        {"null", R"({"value":null})"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            const simdjson::padded_string input(item.json);
+            simdjson::ondemand::parser parser;
+            simdjson::ondemand::document document;
+            REQUIRE(parser.iterate(input).get(document) == simdjson::SUCCESS);
+
+            double value = 0;
+            const auto error = document["value"].get_double().get(value);
+            REQUIRE(error == simdjson::INCORRECT_TYPE);
+        }
+    }
+}
