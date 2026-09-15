@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <simdjson.h>
-
+#include <cmath>
 #include <cstdint>
 #include <string_view>
 #include <optional>
@@ -182,6 +182,32 @@ TEST_CASE("double.overflow", "[simdjson][baseline]") {
             double value = 0;
             const auto error = document["value"].get_double().get(value);
             REQUIRE(error == simdjson::NUMBER_ERROR);
+        }
+    }
+}
+
+TEST_CASE("double.underflow", "[simdjson][baseline]") {
+    const struct {
+        const char* name;
+        std::string_view json;
+        bool negative;
+    } cases[] = {
+        {"positive", R"({"value":1e-400})", false},
+        {"negative", R"({"value":-1e-400})", true},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            const simdjson::padded_string input(item.json);
+            simdjson::ondemand::parser parser;
+            simdjson::ondemand::document document;
+            REQUIRE(parser.iterate(input).get(document) == simdjson::SUCCESS);
+
+            double value = 1;
+            REQUIRE(document["value"].get_double().get(value) ==
+                    simdjson::SUCCESS);
+            REQUIRE(value == 0.0);
+            REQUIRE(std::signbit(value) == item.negative);
         }
     }
 }
