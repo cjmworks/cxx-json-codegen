@@ -91,3 +91,20 @@ TEST_CASE("string_builder.appends_unsigned_integer", "[simdjson][builder]") {
         }
     }
 }
+
+TEST_CASE("string_builder.appends_finite_floating_values",
+          "[simdjson][builder]") {
+    const float price = 1.5f;
+    const double change = -2.25;
+    ::simdjson::builder::string_builder builder;
+
+    builder.start_array();
+    builder.append(price);
+    builder.append_comma();
+    builder.append(change);
+    builder.end_array();
+
+    std::string_view output;
+    REQUIRE(builder.view().get(output) == ::simdjson::SUCCESS);
+    REQUIRE(output == "[1.5,-2.25]");
+}
