@@ -54,7 +54,7 @@ void generate_scalar_object_encode_function(std::ostringstream& out,
         << "inline bool encode_object(\n"
         << "    ::simdjson::builder::string_builder& builder,\n"
         << "    const " + cpp_type + "& value,\n"
-        << "    EncodeError&) {\n"
+        << "    EncodeError& error) {\n"
         << "    builder.start_object();\n";
 
     // 2. Gnerate writes for participating scalar fields.
@@ -62,6 +62,15 @@ void generate_scalar_object_encode_function(std::ostringstream& out,
     for (const auto& field : type.fields) {
         if (field.json.ignored) {
             continue;
+        }
+        if (field.type.kind == metadata::FieldTypeKind::FloatingPoint) {
+            out << "    if (!std::isfinite(value." + field.name + ")) {\n"
+                << "        error.code = EncodeErrorCode::non_finite_number;\n"
+                << "        error.path = {{EncodePathSegmentKind::field, \"" +
+                       field.json.name + "\", 0}};\n"
+                << "        error.runtime_error = ::simdjson::SUCCESS;\n"
+                << "        return false;\n"
+                << "    }\n";
         }
         if (!first_field) {
             out << "    builder.append_comma();\n";

@@ -21,6 +21,8 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
            << "#include <simdjson.h>\n"
            << "\n"
            << "#include <cstddef>\n"
+           << "#include <cmath>\n"
+           << "#include <cstddef>\n"
            << "#include <cstdint>\n"
            << "#include <limits>\n"
            << "#include <new>\n"
