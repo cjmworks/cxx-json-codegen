@@ -166,6 +166,15 @@ std::optional<UnsupportedCapability> unsupported_capability_for_field(
         return std::nullopt;
     }
 
+    if (field.type.kind == metadata::FieldTypeKind::FloatingPoint) {
+        const auto& name = field.type.qualified_name.empty()
+                               ? field.type.spelling
+                               : field.type.qualified_name;
+        if (name == "float" || name == "double") {
+            return std::nullopt;
+        }
+    }
+
     if (is_supported_scalar_type(field.type, enums) ||
         is_supported_optional_field(field.type, enums) ||
         is_supported_vector_field(field.type, enums) ||
@@ -178,7 +187,7 @@ std::optional<UnsupportedCapability> unsupported_capability_for_field(
     std::string reason;
     switch (field.type.kind) {
     case metadata::FieldTypeKind::FloatingPoint:
-        reason = "floating-point decode is not implemented";
+        reason = "floating-point decode only supports float and double";
         break;
     case metadata::FieldTypeKind::Enum:
         reason = "enum string decode requires a resolved enum model";
