@@ -102,6 +102,21 @@ ProjectModel make_integer_project() {
     return project;
 }
 
+// Build one model containing required float and double fields.
+ProjectModel make_floating_project() {
+    TypeModel type;
+    type.name = "FloatingValues";
+    type.qualified_name = "FloatingValues";
+    type.fields = {
+        make_required_field("ratio", FieldTypeKind::FloatingPoint, "float"),
+        make_required_field("amount", FieldTypeKind::FloatingPoint, "double"),
+    };
+
+    ProjectModel project;
+    project.types = {type};
+    return project;
+}
+
 // Build a model containing a required vector of owned strings.
 ProjectModel make_vector_project() {
     auto tags_field = make_required_field("tags", FieldTypeKind::Vector,
