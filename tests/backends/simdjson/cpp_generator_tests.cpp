@@ -844,6 +844,22 @@ int main() {
     }
     {
         const auto result =
+            cjm::generator::simdjson::generate_header(make_floating_project());
+        assert(result.success);
+        assert(result.error.empty());
+
+        const auto expected =
+            read_file("tests/golden/simdjson_floating.expected.cjm.hpp");
+        if (result.header != expected) {
+            std::cerr << "golden mismatch: "
+                         "tests/golden/simdjson_floating.expected.cjm.hpp\n"
+                      << "actual generated header:\n"
+                      << result.header;
+        }
+        assert(result.header == expected);
+    }
+    {
+        const auto result =
             cjm::generator::simdjson::generate_header(make_enum_project());
         assert(result.success);
         assert(result.error.empty());
