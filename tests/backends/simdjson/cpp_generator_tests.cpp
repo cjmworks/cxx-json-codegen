@@ -822,10 +822,10 @@ int main() {
             cjm::generator::simdjson::generate_header(make_single_field_project(
                 "FloatingPointValues",
                 make_required_field("ratio", FieldTypeKind::FloatingPoint,
-                                    "double")));
+                                    "long double")));
         expect_unsupported_capability(
-            result, "FloatingPointValues", "ratio", "ratio", "double",
-            "floating-point decode is not implemented");
+            result, "FloatingPointValues", "ratio", "ratio", "long double",
+            "floating-point decode only supports float and double");
     }
     {
         const auto result =
