@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <string_view>
 
 struct FloatingValues {
     float ratio = 0;
@@ -18,4 +19,31 @@ TEST_CASE("float.values", "[simdjson][decoder]") {
     REQUIRE(error.code == cjm::simdjson::DecodeErrorCode::none);
     REQUIRE(error.path.empty());
     REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
+
+TEST_CASE("float.overflow", "[simdjson][decoder]") {
+    const struct {
+        const char* name;
+        std::string_view json;
+    } cases[] = {
+        {"positive", R"({"ratio":1e100, "amount":0})"},
+        {"negative", R"({"ratio":-1e100, "amount":0})"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::DecodeError error;
+            const auto result =
+                cjm::simdjson::from_json<FloatingValues>(item.json, error);
+
+            REQUIRE_FALSE(result.has_value());
+            REQUIRE(error.code ==
+                    cjm::simdjson::DecodeErrorCode::floating_point_overflow);
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].kind ==
+                    cjm::simdjson::DecodePathSegmentKind::field);
+            REQUIRE(error.path[0].field_name == "ratio");
+        }
+    }
 }
