@@ -1234,6 +1234,7 @@ void generate_field_decode(std::ostringstream& out,
     case metadata::FieldTypeKind::Bool:
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
+    case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::String:
     case metadata::FieldTypeKind::Enum:
         generate_scalar_field_decode(out, field, enums);
@@ -1258,7 +1259,6 @@ void generate_field_decode(std::ostringstream& out,
     case metadata::FieldTypeKind::Map:
         generate_map_field_decode(out, field, enums);
         return;
-    case metadata::FieldTypeKind::FloatingPoint:
     case metadata::FieldTypeKind::Optional:
         generate_optional_field_decode(out, field, enums);
         return;
