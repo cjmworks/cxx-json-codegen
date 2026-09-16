@@ -6,6 +6,8 @@
 #include <simdjson.h>
 
 #include <cstddef>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <new>
@@ -30,8 +32,10 @@ enum class DecodeErrorCode {
     expected_string,
     expected_integer,
     expected_unsigned_integer,
+    expected_number,
     invalid_enum_string,
     integer_overflow,
+    floating_point_overflow,
     fixed_array_extent_mismatch,
     missing_required_field
 };
@@ -199,7 +203,7 @@ namespace cjm::simdjson::detail {
 inline bool encode_object(
     ::simdjson::builder::string_builder& builder,
     const ::BoolValues& value,
-    EncodeError&) {
+    EncodeError& error) {
     builder.start_object();
     builder.escape_and_append_with_quotes("enabled");
     builder.append_colon();

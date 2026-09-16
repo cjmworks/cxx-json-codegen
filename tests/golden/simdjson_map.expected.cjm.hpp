@@ -6,6 +6,8 @@
 #include <simdjson.h>
 
 #include <cstddef>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <new>
@@ -30,8 +32,10 @@ enum class DecodeErrorCode {
     expected_string,
     expected_integer,
     expected_unsigned_integer,
+    expected_number,
     invalid_enum_string,
     integer_overflow,
+    floating_point_overflow,
     fixed_array_extent_mismatch,
     missing_required_field
 };

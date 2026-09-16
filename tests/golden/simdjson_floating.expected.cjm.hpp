@@ -104,14 +104,13 @@ namespace cjm::simdjson::detail {
 
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
-    ::IntegerValues& value,
+    ::FloatingValues& value,
     DecodeError& error) {
     ::simdjson::error_code runtime_error = ::simdjson::SUCCESS;
 
     // 1. Track required fields for this object.
-    bool has_count = false;
-    bool has_limit = false;
-    bool has_narrow = false;
+    bool has_ratio = false;
+    bool has_amount = false;
 
     // 2. Visit each JSON field once.
     for (auto field : object) {
@@ -123,104 +122,67 @@ inline bool decode_object(
             return false;
         }
 
-        if (key == "count") {
-            using target_type = decltype(value.count);
-            std::int64_t decoded_count = 0;
-            runtime_error = field.value().get_int64().get(decoded_count);
+        if (key == "ratio") {
+            using target_type = decltype(value.ratio);
+            double decoded_ratio = 0;
+            runtime_error = field.value().get_double().get(decoded_ratio);
             if (runtime_error) {
-                error.code = DecodeErrorCode::expected_integer;
+                error.code = DecodeErrorCode::expected_number;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "count", 0});
+                    {DecodePathSegmentKind::field, "ratio", 0});
                 error.runtime_error = runtime_error;
                 return false;
             }
-
-            const auto target_min = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::min)());
-            const auto target_max = static_cast<std::int64_t>(
+            const double target_max = static_cast<double>(
                 (std::numeric_limits<target_type>::max)());
-            if (decoded_count < target_min || decoded_count > target_max) {
-                error.code = DecodeErrorCode::integer_overflow;
+            if (decoded_ratio < -target_max || decoded_ratio > target_max) {
+                error.code = DecodeErrorCode::floating_point_overflow;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "count", 0});
+                    {DecodePathSegmentKind::field, "ratio", 0});
+                error.runtime_error = ::simdjson::SUCCESS;
                 return false;
             }
-
-            value.count = static_cast<target_type>(decoded_count);
-            has_count = true;
+            value.ratio = static_cast<target_type>(decoded_ratio);
+            has_ratio = true;
             continue;
         }
-        if (key == "limit") {
-            using target_type = decltype(value.limit);
-            std::uint64_t decoded_limit = 0;
-            runtime_error = field.value().get_uint64().get(decoded_limit);
+        if (key == "amount") {
+            using target_type = decltype(value.amount);
+            double decoded_amount = 0;
+            runtime_error = field.value().get_double().get(decoded_amount);
             if (runtime_error) {
-                error.code = DecodeErrorCode::expected_unsigned_integer;
+                error.code = DecodeErrorCode::expected_number;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "limit", 0});
+                    {DecodePathSegmentKind::field, "amount", 0});
                 error.runtime_error = runtime_error;
                 return false;
             }
-
-            const auto target_max = static_cast<std::uint64_t>(
+            const double target_max = static_cast<double>(
                 (std::numeric_limits<target_type>::max)());
-            if (decoded_limit > target_max) {
-                error.code = DecodeErrorCode::integer_overflow;
+            if (decoded_amount < -target_max || decoded_amount > target_max) {
+                error.code = DecodeErrorCode::floating_point_overflow;
                 error.path.push_back(
-                    {DecodePathSegmentKind::field, "limit", 0});
+                    {DecodePathSegmentKind::field, "amount", 0});
+                error.runtime_error = ::simdjson::SUCCESS;
                 return false;
             }
-
-            value.limit = static_cast<target_type>(decoded_limit);
-            has_limit = true;
-            continue;
-        }
-        if (key == "narrow") {
-            using target_type = decltype(value.narrow);
-            std::int64_t decoded_narrow = 0;
-            runtime_error = field.value().get_int64().get(decoded_narrow);
-            if (runtime_error) {
-                error.code = DecodeErrorCode::expected_integer;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "narrow", 0});
-                error.runtime_error = runtime_error;
-                return false;
-            }
-
-            const auto target_min = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::min)());
-            const auto target_max = static_cast<std::int64_t>(
-                (std::numeric_limits<target_type>::max)());
-            if (decoded_narrow < target_min || decoded_narrow > target_max) {
-                error.code = DecodeErrorCode::integer_overflow;
-                error.path.push_back(
-                    {DecodePathSegmentKind::field, "narrow", 0});
-                return false;
-            }
-
-            value.narrow = static_cast<target_type>(decoded_narrow);
-            has_narrow = true;
+            value.amount = static_cast<target_type>(decoded_amount);
+            has_amount = true;
             continue;
         }
     }
 
     // 3. Verify that every required field was present.
-    if (!has_count) {
+    if (!has_ratio) {
         error.code = DecodeErrorCode::missing_required_field;
         error.path.push_back(
-            {DecodePathSegmentKind::field, "count", 0});
+            {DecodePathSegmentKind::field, "ratio", 0});
         return false;
     }
-    if (!has_limit) {
+    if (!has_amount) {
         error.code = DecodeErrorCode::missing_required_field;
         error.path.push_back(
-            {DecodePathSegmentKind::field, "limit", 0});
-        return false;
-    }
-    if (!has_narrow) {
-        error.code = DecodeErrorCode::missing_required_field;
-        error.path.push_back(
-            {DecodePathSegmentKind::field, "narrow", 0});
+            {DecodePathSegmentKind::field, "amount", 0});
         return false;
     }
 
@@ -233,8 +195,8 @@ inline bool decode_object(
 namespace cjm::simdjson {
 
 template <>
-inline std::optional<::IntegerValues>
-from_json<::IntegerValues>(
+inline std::optional<::FloatingValues>
+from_json<::FloatingValues>(
     std::string_view input,
     DecodeError& error) {
     // 1. Prepare the padded input owned for this decode.
@@ -261,7 +223,7 @@ from_json<::IntegerValues>(
         return std::nullopt;
     }
     // 3. Decode the root object into a new value.
-    ::IntegerValues value{};
+    ::FloatingValues value{};
     if (!detail::decode_object(object, value, error)) {
         return std::nullopt;
     }
@@ -275,69 +237,6 @@ from_json<::IntegerValues>(
 
     // 5. Return the completely decoded object.
     return value;
-}
-
-} // namespace cjm::simdjson
-
-namespace cjm::simdjson::detail {
-
-inline bool encode_object(
-    ::simdjson::builder::string_builder& builder,
-    const ::IntegerValues& value,
-    EncodeError& error) {
-    builder.start_object();
-    builder.escape_and_append_with_quotes("count");
-    builder.append_colon();
-    builder.append(value.count);
-    builder.append_comma();
-    builder.escape_and_append_with_quotes("limit");
-    builder.append_colon();
-    builder.append(value.limit);
-    builder.append_comma();
-    builder.escape_and_append_with_quotes("narrow");
-    builder.append_colon();
-    builder.append(value.narrow);
-    builder.end_object();
-    return true;
-}
-
-} // namespace cjm::simdjson::detail
-
-namespace cjm::simdjson {
-
-template <>
-inline std::optional<std::string>
-to_json<::IntegerValues>(
-    const ::IntegerValues& value,
-    EncodeError& error) {
-    error = {};
-    try {
-        ::simdjson::builder::string_builder builder;
-        const bool model_valid =
-            detail::encode_object(builder, value, error);
-        std::string_view view;
-        const auto runtime_error = builder.view().get(view);
-        if (runtime_error != ::simdjson::SUCCESS) {
-            error.path.clear();
-            error.code = EncodeErrorCode::output_failure;
-            error.runtime_error = runtime_error;
-            return std::nullopt;
-        }
-        if (!model_valid) {
-            return std::nullopt;
-        }
-        return std::string(view);
-    } catch (const std::bad_alloc&) {
-        error.path.clear();
-        error.code = EncodeErrorCode::allocation_failure;
-        error.runtime_error = ::simdjson::SUCCESS;
-        return std::nullopt;
-    } catch (const std::length_error&) {
-        error.path.clear();
-        error.code = EncodeErrorCode::size_limit_exceeded;
-        error.runtime_error = ::simdjson::SUCCESS;
-        return std::nullopt;
-    }
 }
 
 } // namespace cjm::simdjson

@@ -17,5 +17,5 @@ TEST_CASE("float.values", "[simdjson][decoder]") {
     REQUIRE(result->amount == -2.25f);
     REQUIRE(error.code == cjm::simdjson::DecodeErrorCode::none);
     REQUIRE(error.path.empty());
-    REQUIRE(error.std::runtime_error == ::simdjson::SUCCESS);
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
 }

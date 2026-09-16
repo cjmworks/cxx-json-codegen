@@ -133,7 +133,7 @@ if (CJM_ENABLE_SIMDJSON)
   add_test(NAME cjm_simdjson_integer_generated_compile_tests
            COMMAND cjm_simdjson_integer_generated_compile_tests)
 
-  add_executable(cjm_simdjson_floating_decode_generated_tests ${PROJECT_SOURCE_DIR/tests/backends/simdjson/floating_decode_generated_tests.cpp)
+  add_executable(cjm_simdjson_floating_decode_generated_tests ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/floating_decode_generated_tests.cpp)
   target_compile_features(cjm_simdjson_floating_decode_generated_tests PRIVATE cxx_std_17)
   target_include_directories(cjm_simdjson_floating_decode_generated_tests PRIVATE ${PROJECT_SOURCE_DIR})
   target_link_libraries(cjm_simdjson_floating_decode_generated_tests PRIVATE simdjson::simdjson Catch2::Catch2WithMain)
