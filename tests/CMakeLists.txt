@@ -112,6 +112,7 @@ if (CJM_ENABLE_SIMDJSON)
     ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/cpp_generator_tests.cpp
   )
   target_link_libraries(cjm_simdjson_generator_tests PRIVATE cjm_simdjson_generator)
+  target_include_directories(cjm_simdjson_generator_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests)
   add_test(NAME cjm_simdjson_generator_tests COMMAND cjm_simdjson_generator_tests)
   set_tests_properties(cjm_simdjson_generator_tests PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 

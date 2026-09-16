@@ -1,4 +1,5 @@
 #include "backends/simdjson/cpp_generator.hpp"
+#include "support/golden_diff.hpp"
 
 #include <cassert>
 #include <cstdlib>
@@ -853,8 +854,8 @@ int main() {
         if (result.header != expected) {
             std::cerr << "golden mismatch: "
                          "tests/golden/simdjson_floating.expected.cjm.hpp\n"
-                      << "actual generated header:\n"
-                      << result.header;
+                      << cjm::test::format_golden_mismatch(expected,
+                                                           result.header);
         }
         assert(result.header == expected);
     }
