@@ -47,3 +47,33 @@ TEST_CASE("float.overflow", "[simdjson][decoder]") {
         }
     }
 }
+
+TEST_CASE("float.read_error", "[simdjson][decoder]") {
+    const struct {
+        const char* name;
+        std::string_view json;
+        simdjson::error_code expected;
+    } cases[] = {
+        {"wrong_type", R"({"ratio":"1.5", "amount":0})",
+         simdjson::INCORRECT_TYPE},
+        {"double_overflow", R"({"ratio":1e400, "amount":0})",
+         simdjson::NUMBER_ERROR},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::DecodeError error;
+            const auto result =
+                cjm::simdjson::from_json<FloatingValues>(item.json, error);
+
+            REQUIRE_FALSE(result.has_value());
+            REQUIRE(error.code ==
+                    cjm::simdjson::DecodeErrorCode::expected_number);
+            REQUIRE(error.runtime_error == item.expected);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].kind ==
+                    cjm::simdjson::DecodePathSegmentKind::field);
+            REQUIRE(error.path[0].field_name == "ratio");
+        }
+    }
+}
