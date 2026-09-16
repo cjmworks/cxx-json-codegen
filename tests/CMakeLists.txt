@@ -52,6 +52,13 @@ if (CJM_ENABLE_SIMDJSON)
     TEST_PREFIX cjm_simdjson_builder_smoke_tests.
   )
 
+  add_executable(cjm_simdjson_decoder_tests 
+    ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/decoder_tests.cpp
+  )
+  target_compile_features(cjm_simdjson_decoder_tests PRIVATE cxx_std_17)
+  target_link_libraries(cjm_simdjson_decoder_tests PRIVATE cjm_simdjson_generator Catch2::Catch2WithMain)
+  catch_discover_tests(cjm_simdjson_decoder_tests TEST_PREFIX cjm_simdjson_decoder_tests.)
+
   add_executable(cjm_simdjson_encoder_tests
     ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/encoder_tests.cpp
   )
