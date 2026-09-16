@@ -241,6 +241,34 @@ Malformed numbers are decode failures.
 Non-finite values are not part of standard JSON and are not accepted by the core
 profile.
 
+### Experimental simdjson decode policy
+
+The current direct-field slice supports `float` and `double`. `long double`
+and floating-point values wrapped in optional, vector, array, or map fields
+remain generation-time unsupported capabilities; this slice does not enable
+floating-point encoding.
+
+Generated code first reads a temporary `double` using `get_double()`. A failed
+read reports `expected_number`, preserves the simdjson error code, and records
+the effective JSON field path. In particular, `NUMBER_ERROR` is not relabeled
+as overflow: it can also represent malformed number text.
+
+Before assigning the temporary to the target field, generated code checks
+against plus/minus `numeric_limits<target_type>::max()`. A value outside that
+interval reports `floating_point_overflow` with runtime `SUCCESS`, because the
+underlying read succeeded. No partially decoded root object is returned.
+
+Ordinary binary floating-point rounding is accepted; exact decimal
+representability is not required. Under the supported default floating-point
+environment, sufficiently small magnitudes may round to zero, preserving the
+sign. Tests separately cover JSON-to-double underflow and double-to-float
+underflow, as well as representable subnormal values. These tests exercise the
+usual IEEE binary32/binary64 environment; they do not establish portability
+under fast-math, flush-to-zero modes, or altered rounding modes.
+
+Each root call resets the error before decoding; a successful call after a
+failed call leaves no stale code, runtime error, or path.
+
 ## Strings
 
 JSON value must be a string.
