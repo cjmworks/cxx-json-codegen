@@ -560,6 +560,7 @@ void generate_floating_point_value_decode(
     generate_value_error_path(out, field, indent_level + 1, path);
     write_line(out, indent_level + 1,
                "error.runtime_error = ::simdjson::SUCCESS;");
+    write_line(out, indent_level + 1, "return false;");
     write_line(out, indent_level, "}");
     write_line(out, indent_level,
                target_expression + " = static_cast<target_type>(" +
@@ -644,6 +645,10 @@ void generate_scalar_value_decode(std::ostringstream& out,
         return;
     }
     case metadata::FieldTypeKind::FloatingPoint:
+        generate_floating_point_value_decode(
+            out, field, simdjson_value_expression, target_expression,
+            indent_level, path);
+        return;
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
