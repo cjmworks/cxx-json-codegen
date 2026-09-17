@@ -418,22 +418,39 @@ Rules:
 
 ## Possible Future Extensions
 
-Future frontends and backends are architectural possibilities, not current
-implementation commitments.
+CJM remains JSON-first. Prefer nlohmann/json compatibility/reference integration,
+the simdjson generated codec, an optional Glaze JSON metadata adapter, and yyjson
+as a future C-oriented compact-DOM candidate. Candidate status is not support.
 
-Possible future frontends:
+Glaze metadata is an output artifact, never a second canonical IR or an
+intermediate representation consumed by other backends. Core and Semantic
+Analysis must not depend on Glaze. Extra ecosystem formats do not become
+CJM-native product scope.
 
-- C
-- other source-language frontends
+A bounded C frontend research spike before v1.0 should validate:
 
-Possible future backends:
+```text
+C++ source -> C++ semantic normalization --+
+                                           +-> shared Metadata IR -> JSON backends
+C source   -> C semantic normalization ----+                      -> artifacts
+              (future research)
+```
 
-- RapidJSON
-- yyjson
-- json-c
-- allocation-free C JSON writer
-- Documentation
-- Reflection metadata
+Current IR reuse is a hypothesis to test with real C DTOs, not a reason to
+rewrite it preemptively. C-specific pointer/length facts may need temporary
+semantic normalization; backends should receive canonical meaning and source
+bindings needed for generation, not parser nodes or yyjson facts. C/C++ share
+JSON semantics, not necessarily generated APIs or ownership models.
+
+After the spike, freeze and implement a bounded C MVP with one JSON binding,
+explicit ownership/error contracts, build integration, and conformance. Its
+completion is a v1.0 release condition alongside stable C++ JSON codegen.
+Keep Glaze JSON adapter integration in the preceding plan; it consumes current
+IR and does not wait for C. Evidence-backed IR changes must migrate and test
+affected backends together. C capabilities beyond the frozen MVP remain v1.x
+work, not implied release requirements. See the
+[JSON-first extension strategy](docs/design/json-first-extension-strategy.md)
+for experiment limits, ownership questions, and IR migration gates.
 
 ## Non-goals
 

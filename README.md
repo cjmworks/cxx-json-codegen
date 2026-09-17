@@ -20,7 +20,8 @@ or runtime reflection.
 The released C++ integration uses `nlohmann/json`. JSON Schema and experimental
 model-contract metadata are additional outputs from the same validated model.
 CJM generates integration around your types, not the types themselves or a
-replacement JSON runtime.
+replacement JSON runtime. The product is JSON-first, not a general-purpose
+multi-format serialization framework.
 
 > **Standard C++ in. Standard C++ out.**
 
@@ -493,8 +494,20 @@ automatically make runtime behavior identical. Supported shapes, numeric
 limits, omission rules, and error behavior still need explicit contracts and
 conformance tests. The simdjson backend is ongoing experimental work; Glaze
 and additional serialization formats are future directions, not capabilities
-promised by the current release. See the [runtime semantic profile](docs/design/runtime-json-semantic-profile.md)
-and [roadmap](ROADMAP.md).
+promised by the current release. Glaze is planned only as an optional JSON
+metadata adapter: generated `glz::meta<T>` is an output, not a second IR.
+Any extra formats would be verified ecosystem capabilities, not CJM-native
+format backends.
+
+A bounded C frontend research spike is planned before v1.0 to stress-test
+the shared IR with real C models. It is not current C support or a commitment
+to rewrite the IR. After the spike, a bounded C MVP with one JSON runtime
+binding must be completed before v1.0. The planned Glaze JSON metadata adapter
+integration remains in place and does not wait for C. Broader C capabilities
+are deferred to v1.x; no C support is claimed today. See the
+[extension strategy](docs/design/json-first-extension-strategy.md),
+[runtime semantic profile](docs/design/runtime-json-semantic-profile.md), and
+[roadmap](ROADMAP.md).
 
 Users only interact with standard C++ source code, CMake, generated C++ files,
 and optional generated schema artifacts.
@@ -629,6 +642,7 @@ See [ROADMAP.md](ROADMAP.md) for the current product roadmap.
 - [Generated Model Contract](docs/design/generated-model-contract.md)
 - [Custom Converter Boundaries](docs/design/custom-converters.md)
 - [Backend Strategy](docs/design/backend-strategy.md)
+- [JSON-First Extensions: Glaze and C Research](docs/design/json-first-extension-strategy.md)
 - [High-Performance JSON Strategy](docs/design/high-performance-json-strategy.md)
 - [Binary Format Strategy](docs/design/binary-format-strategy.md)
 - [Runtime Backend Program](docs/design/runtime-backend-program.md)

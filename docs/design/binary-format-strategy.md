@@ -1,5 +1,14 @@
 # Binary Format Strategy
 
+Status update, 2026-09-16: retained as historical, uncommitted research notes.
+The [JSON-first extension strategy](json-first-extension-strategy.md) supersedes
+the broader product direction and staged roadmap below. CJM does not currently
+plan native YAML/TOML/BEVE/CBOR/MessagePack backends or a wire platform. Glaze is
+first a JSON metadata adapter; extra formats require version-specific evidence
+and remain optional ecosystem capabilities, not CJM-owned semantics. Format
+lists and API sketches below are hypotheses, not verified library support or
+approved implementation tasks. Binary work does not block any JSON release.
+
 This document records CJM's future strategy for binary representations, tagged
 wire protocols, borrowed view models, and related benchmark work.
 
@@ -559,7 +568,7 @@ CJM Metadata IR
 CJM-generated Glaze metadata or integration
     |
     v
-Glaze JSON / BEVE / CBOR / MessagePack
+Glaze JSON / selected experimentally verified ecosystem format
 ```
 
 This experiment can test:
@@ -750,7 +759,7 @@ Potential time-boxed experiment:
 
 ```text
 CJM + Glaze
-JSON / BEVE / CBOR / MessagePack
+JSON / selected experimentally verified ecosystem format
 ```
 
 ## Stage 3 - Product Signal Review

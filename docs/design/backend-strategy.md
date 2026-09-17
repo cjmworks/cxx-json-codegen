@@ -2,6 +2,23 @@
 
 This document describes CJM's JSON backend strategy.
 
+The [JSON-first extension strategy](json-first-extension-strategy.md) defines
+the current product boundary and sequencing. Prefer nlohmann/json reference
+integration, the active simdjson generated codec, a future optional Glaze JSON
+metadata adapter, and a future C-oriented yyjson compact-DOM binding. Broader
+runtime categories below are research taxonomy, not a commitment to support
+many libraries. A Glaze custom codec requires a separate product decision and
+is not part of the planned metadata adapter.
+
+Glaze metadata must remain an output of CJM IR, not a second IR or a bridge
+through which other backends must pass. Extra formats require verified optional
+ecosystem support; native YAML/TOML/binary backends are not core deliverables.
+The bounded pre-v1.0 C frontend spike is followed by a scope-frozen C MVP with
+one JSON runtime binding; completing it is a v1.0 release gate. yyjson is the
+preferred candidate, subject to evidence, not a frontend dependency. Glaze
+JSON metadata adapter integration keeps its earlier place in the sequence.
+Broader C capabilities remain v1.x work; none of this expands current v0.6.
+
 CJM is a build-time code generation tool.
 
 Backends determine what kind of serialization code CJM emits.

@@ -1,5 +1,10 @@
 # cxx-json-map Design
 
+Historical design notes. For current architecture and scope, see
+[ARCHITECTURE.md](../ARCHITECTURE.md) and the
+[JSON-first extension strategy](design/json-first-extension-strategy.md).
+Early multi-format ideas below are not current product commitments.
+
 ## Problem
 
 C++ does not currently provide a standard Go-style struct tag mechanism for

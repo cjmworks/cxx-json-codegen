@@ -1,5 +1,10 @@
 # Roadmap
 
+Historical phase plan. The authoritative release plan is
+[ROADMAP.md](../ROADMAP.md), with extension boundaries in the
+[JSON-first extension strategy](design/json-first-extension-strategy.md).
+Early XML/YAML/TOML emitter ideas below are not current delivery commitments.
+
 ## Phase 0: Project Skeleton
 
 Goal:

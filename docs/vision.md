@@ -110,6 +110,21 @@ Adding CJM to an existing project should feel like enabling another compiler too
 
 # Long-Term Vision
 
+The product focus remains model-first JSON code generation and metadata
+compilation, including JSON Schema and Model Contract. Reusable infrastructure
+does not imply a general-purpose multi-format serialization framework.
+
+Current users write C++ models. A bounded pre-v1.0 C frontend research spike
+will stress-test canonical IR with real C DTOs. Freeze a bounded C MVP from that
+evidence and complete it before v1.0, alongside stable C++ JSON codegen. Keep
+the Glaze JSON metadata adapter integration in its planned sequence; it must
+not wait for C. Broader C capabilities remain v1.x work. Do not redesign IR
+before the experiment demonstrates concrete gaps.
+
+Glaze is a future optional JSON metadata adapter, not a mandatory dependency or
+second IR. Verified extra formats remain ecosystem capabilities, not native
+format commitments. See the [extension strategy](design/json-first-extension-strategy.md).
+
 The first goal of CJM is build-time JSON code generation.
 
 That is only the beginning.

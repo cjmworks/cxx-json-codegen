@@ -375,7 +375,15 @@ Expected evidence:
 
 ## Work Package G1 - Glaze Metadata Adapter Evaluation
 
-Evaluate CJM-generated Glaze metadata as an optional adapter backend.
+Evaluate CJM-generated Glaze metadata as an optional JSON adapter, after the
+simdjson MVP and reliability work, around v0.8. First use Glaze directly and
+write small manual metadata examples; then compare with CJM IR and generate
+one minimal model. Follow the
+[JSON-first extension strategy](json-first-extension-strategy.md).
+
+Generated `glz::meta<T>` is an output, not a second IR. Core and other backends
+must not depend on it. CJM semantics remain authoritative. Additional formats
+are version-verified ecosystem capabilities, not CJM-native deliverables.
 
 The evaluation should answer:
 
@@ -389,7 +397,9 @@ Glaze must not raise CJM core or nlohmann users to C++23.
 
 ## Work Package G2 - Glaze Generated Custom Codec Evaluation
 
-Evaluate generated custom serialization separately from metadata generation.
+Deferred research only, not part of v0.6 or the planned Glaze metadata adapter.
+Reopening this experiment requires a separate evidence-backed product decision.
+If approved, evaluate custom serialization separately from metadata generation.
 
 The comparison should distinguish:
 
@@ -409,7 +419,14 @@ Keeping only the metadata adapter is a valid outcome.
 
 ## Work Package H - yyjson Compact-DOM Evaluation
 
-Evaluate yyjson as a compact document / DOM backend or control group.
+Future C-oriented binding candidate, not a v0.6 deliverable. First complete a
+bounded C frontend / canonical IR spike around v0.9 without coupling the
+frontend to yyjson. After the spike, freeze and implement a C MVP with one
+JSON runtime binding before v1.0; yyjson remains the preferred candidate pending
+evidence. Define ownership, lengths, lifetime, failure cleanup, and C APIs
+explicitly. C MVP completion is a release gate, but full C language support and
+additional ownership profiles remain beyond it. Preserve the preceding Glaze
+JSON metadata adapter integration rather than replacing it with C work.
 
 yyjson should not be described as no-DOM.
 
@@ -620,11 +637,17 @@ The agreed priority is:
 8. simdjson decode MVP
 9. simdjson builder / encode spike
 10. simdjson experimental backend evidence review
-11. Glaze metadata adapter evaluation
-12. Glaze generated custom codec evaluation, only if justified
-13. yyjson compact-DOM evaluation
-14. backend comparison and promotion report
+11. reliability, diagnostics, and stabilization (v0.7)
+12. optional Glaze JSON metadata adapter evaluation and integration (around v0.8)
+13. bounded C frontend / canonical IR spike, then freeze and implement C MVP
+14. joint validation and v1.0: stable C++ JSON codegen plus completed C MVP
+15. C capabilities beyond the frozen MVP (v1.x)
 ```
+
+Comparison and promotion decisions accompany each candidate's evidence, not a
+requirement to implement every candidate before a release. The C spike has an
+agreed time budget and a findings report; it does not require full pointer or
+ownership support. No speculative IR rewrite is authorized.
 
 Rationale:
 

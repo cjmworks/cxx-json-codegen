@@ -9,7 +9,9 @@ clear long-term identity.
 
 # Vision
 
-CJM is a metadata-driven source generator for Modern C++.
+CJM is a JSON-first, model-first code generator / metadata compiler, currently
+for supported Modern C++ models. It is not a multi-format serialization
+framework. C is a future frontend direction, not an existing product capability.
 
 The goal is **not** to become another JSON library.
 
@@ -31,6 +33,20 @@ Design principles:
   open-ended promise to support the entire C++ type system.
 
 ---
+
+# Extension Sequence
+
+The dependency order is: v0.6 simdjson JSON MVP and conformance; v0.7
+reliability and diagnostics; v0.8 optional Glaze JSON metadata adapter evaluation
+and integration; around v0.9 a bounded C frontend/IR research spike followed
+by a scope-frozen C MVP; v1.0 stable C++ JSON codegen plus that completed C MVP;
+v1.x broader C capabilities. Version labels may move, but C MVP completion is
+a v1.0 release gate. C must not displace the planned Glaze adapter integration
+or trigger speculative IR redesign. Current simdjson work remains uninterrupted.
+
+See [JSON-First Extension Strategy](docs/design/json-first-extension-strategy.md)
+for semantic authority, adapter isolation, spike scope, and IR-change gates.
+It supersedes broader backend/format candidate lists as a delivery plan.
 
 # Architecture Direction
 
@@ -67,11 +83,9 @@ Future backends may include:
 - compatibility backends such as nlohmann/json
 - schema backend
 - documentation backend
-- metadata adapter backends such as CJM-generated Glaze metadata or DAW JSON
-  Link contracts
-- generated codec backends such as simdjson On-Demand or an independently
-  justified Glaze custom codec
-- compact document / DOM backends such as yyjson
+- an optional Glaze JSON metadata adapter, never a second IR
+- generated JSON codecs through simdjson On-Demand and its official builder
+- future C-oriented compact document / DOM bindings through yyjson
 - SAX or state-machine experiments such as RapidJSON SAX
 - optional native runtime research outside the core CJM repository
 
@@ -662,11 +676,9 @@ Initial backend:
 Potential later backends:
 
 - artifact backends such as JSON Schema and documentation output
-- metadata adapter backends such as CJM-generated Glaze metadata or DAW JSON
-  Link contracts
-- generated codec backends such as simdjson On-Demand or an independently
-  justified Glaze custom codec
-- compact document / DOM backends such as yyjson
+- an optional Glaze JSON metadata adapter, never a second IR
+- generated JSON codecs through simdjson On-Demand and its official builder
+- future C-oriented compact document / DOM bindings through yyjson
 - later SAX or state-machine experiments such as RapidJSON SAX
 - optional native runtime research outside the core CJM repository
 
@@ -887,18 +899,22 @@ Completed runtime backend work packages:
 - simdjson generated-codec vertical slice with owned strings, optional integer
   presence, and one required nested generated model
 
-Remaining runtime backend work packages:
+Remaining v0.6 runtime backend work packages:
 
 - simdjson experimental backend MVP with nlohmann practical mapping parity,
   decode, encode, conformance, round-trip tests, and docs
   - encode uses the official simdjson builder, not a new CJM JSON writer;
     see [encode strategy](docs/design/simdjson-encode-strategy.md) for the
     selected API boundary and semantic/error contract
-- Glaze metadata adapter evaluation after simdjson context is preserved
-- separate Glaze generated custom codec evaluation only if its documented API
-  and evidence justify the maintenance cost
-- yyjson compact document / DOM evaluation
-- backend comparison and promotion report
+- simdjson comparison and promotion report
+
+Later research, not v0.6 deliverables:
+
+- optional Glaze JSON metadata adapter evaluation and integration around v0.8
+- bounded C frontend / canonical IR validation around v0.9, before v1.0
+- yyjson compact document / DOM binding research as part of future C
+  MVP delivery before v1.0; C frontend lowering must be validated independently
+  first, and the backend choice confirmed from that evidence
 
 Backend classification:
 
@@ -908,7 +924,8 @@ Backend classification:
 - simdjson native custom-type conversion and reflection paths are comparison
   baselines, not capabilities CJM may ignore
 - Glaze metadata generation is a later optional adapter candidate
-- Glaze custom codec generation is a distinct, stoppable experiment
+- Glaze custom codec generation is not a planned deliverable; reconsider only
+  through a separate evidence-backed decision
 - yyjson is a compact document / DOM candidate, not a no-DOM backend
 - DAW JSON Link is a possible time-boxed direct-typed C++17 spike
 - RapidJSON SAX is a possible low-level state-machine experiment
@@ -991,6 +1008,16 @@ Goal:
 
 > Make CJM understandable as a Modern C++ developer tool, not only as a JSON helper.
 
+Evaluate the optional Glaze JSON metadata adapter after the simdjson work and
+reliability foundation. Begin with direct Glaze usage and handwritten metadata,
+then one small generated mapping, before rename/ignore, optional, enum, and
+nested/container coverage. Validate added value over native reflection and
+handwritten metadata. Keep CJM IR authoritative and Glaze dependencies isolated.
+Other formats are optional ecosystem exposure only after version-specific
+verification, not native CJM backends. Keep adapter integration in this sequence
+rather than dropping or delaying it for C work. Promotion classification remains
+evidence-based; being optional for users does not remove planned integration.
+
 Add:
 
 - complete quick start
@@ -1036,6 +1063,28 @@ Success criteria:
 Goal:
 
 > Prepare CJM for a stable v1.0 release.
+
+Before stabilizing core contracts, run a bounded C frontend research spike
+using 5-10 representative DTOs and manually specified expected IR. Test the
+source-to-canonical-IR boundary and one minimal JSON artifact path; yyjson is
+not required. Explicitly define fixed-array/string interpretation rather than
+inferring pointer ownership or null termination.
+
+Agree a time budget and stop criteria first. Deliver mapping tests and an
+architecture findings report, not a complete C product. Only demonstrated
+expression gaps justify separately reviewed minimal IR cleanup. Do not rename
+Vector/UserDefined or split field metadata speculatively. Triage current C++
+defects, compatibility risks, and deferred C-only requirements separately;
+not every spike finding must be implemented before v1.0.
+
+After reviewing the spike, freeze the C MVP scope and implement it before
+release: a supported C model subset, one JSON runtime binding, explicit string
+and ownership rules, encode/decode, diagnostics, failure cleanup, CMake usage,
+tests, and examples. yyjson is the preferred candidate, not a dependency of
+the frontend. Implement one ownership profile first. Required IR changes must
+include migration and regression tests for affected backends, including the
+already integrated Glaze adapter. The C MVP is a release gate; broader C
+capabilities remain outside it.
 
 Harden:
 
@@ -1097,8 +1146,12 @@ Definition of done:
 - troubleshooting documentation
 - dogfooded on practical models, including `ull-md-engine`
 - at least several external or downstream projects using CJM successfully
+- completed, documented C MVP with one JSON binding and tested ownership/error
+  behavior; no promise of full C language support
+- joint regression/conformance validation of the C MVP, existing C++ backends,
+  and the planned optional Glaze JSON metadata adapter integration
 
-Required JSON mapping surface:
+Required C++ JSON mapping surface (C has its separately frozen MVP matrix):
 
 - `bool`
 - signed and unsigned integer types
@@ -1167,12 +1220,12 @@ Possible future work:
 - custom map key converters
 - RapidJSON backend
 - simdjson backend promotion
-- Glaze backend promotion
-- yyjson backend promotion
+- Glaze JSON metadata adapter promotion after its bounded evaluation
+- C types, additional ownership profiles, and binding capabilities beyond the
+  v1.0 C MVP, subject to evidence and conformance
 - DAW JSON Link evaluation
-- binary JSON-like representation experiments only after runtime backend
-  evidence, following [Binary Format Strategy](docs/design/binary-format-strategy.md)
-- YAML backend
+- optional ecosystem-provided format exposure through verified adapters;
+  native YAML/TOML/binary backends are not core roadmap commitments
 - OpenAPI integration
 - reflection backend
 - validation metadata
