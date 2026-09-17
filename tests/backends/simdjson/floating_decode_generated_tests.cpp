@@ -161,9 +161,11 @@ TEST_CASE("float.recovers", "[simdjson][decoder]") {
         simdjson::error_code runtime_error;
     } cases[] = {
         {"target_overflow", R"({"ratio":1e100,"amount":0})",
-         cjm::simdjson::DecodeErrorCode::floating_point_overflow, simdjson::SUCCESS},
+         cjm::simdjson::DecodeErrorCode::floating_point_overflow,
+         simdjson::SUCCESS},
         {"read_error", R"({"ratio":"bad","amount":0})",
-         cjm::simdjson::DecodeErrorCode::expected_number, simdjson::INCORRECT_TYPE},
+         cjm::simdjson::DecodeErrorCode::expected_number,
+         simdjson::INCORRECT_TYPE},
     };
 
     for (const auto& item : cases) {
@@ -187,4 +189,19 @@ TEST_CASE("float.recovers", "[simdjson][decoder]") {
             REQUIRE(error.runtime_error == simdjson::SUCCESS);
         }
     }
+}
+
+TEST_CASE("float.encode", "[simdjson][encoder]") {
+    const FloatingValues value{1.5f, -2.25};
+    cjm::simdjson::EncodeError error;
+
+    const auto result = cjm::simdjson::to_json(value, error);
+
+    REQUIRE(result.has_value());
+    REQUIRE(*result == R"({"ratio":1.5,"amount":-2.25})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == simdjson::SUCCESS);
+    REQUIRE(value.ratio == 1.5f);
+    REQUIRE(value.amount == -2.25);
 }

@@ -240,3 +240,74 @@ from_json<::FloatingValues>(
 }
 
 } // namespace cjm::simdjson
+
+namespace cjm::simdjson::detail {
+
+inline bool encode_object(
+    ::simdjson::builder::string_builder& builder,
+    const ::FloatingValues& value,
+    EncodeError& error) {
+    builder.start_object();
+    if (!std::isfinite(value.ratio)) {
+        error.code = EncodeErrorCode::non_finite_number;
+        error.path = {{EncodePathSegmentKind::field, "ratio", 0}};
+        error.runtime_error = ::simdjson::SUCCESS;
+        return false;
+    }
+    builder.escape_and_append_with_quotes("ratio");
+    builder.append_colon();
+    builder.append(value.ratio);
+    if (!std::isfinite(value.amount)) {
+        error.code = EncodeErrorCode::non_finite_number;
+        error.path = {{EncodePathSegmentKind::field, "amount", 0}};
+        error.runtime_error = ::simdjson::SUCCESS;
+        return false;
+    }
+    builder.append_comma();
+    builder.escape_and_append_with_quotes("amount");
+    builder.append_colon();
+    builder.append(value.amount);
+    builder.end_object();
+    return true;
+}
+
+} // namespace cjm::simdjson::detail
+
+namespace cjm::simdjson {
+
+template <>
+inline std::optional<std::string>
+to_json<::FloatingValues>(
+    const ::FloatingValues& value,
+    EncodeError& error) {
+    error = {};
+    try {
+        ::simdjson::builder::string_builder builder;
+        const bool model_valid =
+            detail::encode_object(builder, value, error);
+        std::string_view view;
+        const auto runtime_error = builder.view().get(view);
+        if (runtime_error != ::simdjson::SUCCESS) {
+            error.path.clear();
+            error.code = EncodeErrorCode::output_failure;
+            error.runtime_error = runtime_error;
+            return std::nullopt;
+        }
+        if (!model_valid) {
+            return std::nullopt;
+        }
+        return std::string(view);
+    } catch (const std::bad_alloc&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::allocation_failure;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    } catch (const std::length_error&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::size_limit_exceeded;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    }
+}
+
+} // namespace cjm::simdjson
