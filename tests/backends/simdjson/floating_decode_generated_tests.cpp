@@ -205,3 +205,41 @@ TEST_CASE("float.encode", "[simdjson][encoder]") {
     REQUIRE(value.ratio == 1.5f);
     REQUIRE(value.amount == -2.25);
 }
+
+TEST_CASE("float.non_finite", "[simdjson][encoder]") {
+    const struct {
+        const char* name;
+        FloatingValues value;
+        std::string_view field;
+    } cases[] = {
+        {"float_nan", {std::numeric_limits<float>::quiet_NaN(), 0}, "ratio"},
+        {"float_positive_inf",
+         {std::numeric_limits<float>::infinity(), 0},
+         "ratio"},
+        {"float_negative_inf",
+         {-std::numeric_limits<float>::infinity(), 0},
+         "ratio"},
+        {"double_nan", {0, std::numeric_limits<double>::quiet_NaN()}, "amount"},
+        {"double_positive_inf",
+         {0, std::numeric_limits<double>::infinity()},
+         "amount"},
+        {"double_negative_inf",
+         {0, -std::numeric_limits<double>::infinity()},
+         "amount"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::EncodeError error;
+            const auto result = cjm::simdjson::to_json(item.value, error);
+
+            REQUIRE_FALSE(result.has_value());
+            REQUIRE(error.code ==
+                    cjm::simdjson::EncodeErrorCode::non_finite_number);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].kind ==
+                    cjm::simdjson::EncodePathSegmentKind::field);
+            REQUIRE(error.path[0].field_name == item.field);
+        }
+    }
+}
