@@ -168,3 +168,39 @@ TEST_CASE("float.guard", "[simdjson][encoder]") {
     REQUIRE(write_pos != std::string::npos);
     REQUIRE(guard_pos + guard.size() <= write_pos);
 }
+
+TEST_CASE("float.fields", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    for (const auto* name : {"float", "double"}) {
+        DYNAMIC_SECTION(name) {
+            FieldModel field;
+            field.name = "price";
+            field.json.name = "price";
+            field.type.kind = FieldTypeKind::FloatingPoint;
+            field.type.spelling = name;
+            field.type.qualified_name = name;
+
+            TypeModel type;
+            type.name = "Quote";
+            type.fields.push_back(field);
+            ProjectModel project;
+            project.types.push_back(type);
+
+            const auto result =
+                cjm::generator::simdjson::generate_header(project);
+            INFO(result.error);
+            REQUIRE(result.success);
+            REQUIRE(result.header.find("to_json<::Quote>") !=
+                    std::string::npos);
+
+            const auto guard =
+                result.header.find("if (!std::isfinite(value.price))");
+            const auto write =
+                result.header.find("builder.append(value.price);");
+            REQUIRE(guard != std::string::npos);
+            REQUIRE(write != std::string::npos);
+            REQUIRE(guard < write);
+        }
+    }
+}
