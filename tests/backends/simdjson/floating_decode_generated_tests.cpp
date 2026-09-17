@@ -286,7 +286,7 @@ TEST_CASE("float.round_trip", "[simdjson][encoder]") {
     }
 }
 
-TEST_CASE("flaot.encode_recovers", "[simdjson][encoder]") {
+TEST_CASE("float.encode_recovers", "[simdjson][encoder]") {
     cjm::simdjson::EncodeError error;
     const FloatingValues invalid{1.5f,
                                  std::numeric_limits<double>::quiet_NaN()};

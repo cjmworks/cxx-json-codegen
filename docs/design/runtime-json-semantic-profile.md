@@ -245,8 +245,8 @@ profile.
 
 The current direct-field slice supports `float` and `double`. `long double`
 and floating-point values wrapped in optional, vector, array, or map fields
-remain generation-time unsupported capabilities; this slice does not enable
-floating-point encoding.
+remain generation-time unsupported capabilities. Direct-field encoding is
+described below.
 
 Generated code first reads a temporary `double` using `get_double()`. A failed
 read reports `expected_number`, preserves the simdjson error code, and records
@@ -268,6 +268,35 @@ under fast-math, flush-to-zero modes, or altered rounding modes.
 
 Each root call resets the error before decoding; a successful call after a
 failed call leaves no stale code, runtime error, or path.
+
+### Experimental simdjson encode policy
+
+Models whose participating fields are bool, supported integers, `float`, or
+`double` now have generated encoders. This is a direct-field capability, not
+support for floating-point optionals or containers. `long double` remains
+unsupported; the generator must not silently narrow it to `double`.
+
+Before writing each floating-point value, generated code checks
+`std::isfinite`. NaN and positive/negative infinity report `non_finite_number`
+with the effective JSON field name in the path and runtime `SUCCESS`: the
+value was rejected by CJM before calling the writer. Failure returns no JSON
+string, even if earlier fields were already written to the private builder.
+Resource and writer failures retain the precedence defined in the
+[encode strategy](simdjson-encode-strategy.md#error-contract).
+
+Finite values use the official builder's formatting. Tests cover ordinary
+values and round trips for positive/negative maxima, the smallest positive
+subnormals, negative zero, and representative decimal values. Round-trip
+assertions compare the original stored floating-point values and zero signs,
+not a universal decimal spelling or exact mathematical decimal value. This
+is sampled coverage of the current runtime/compiler environment, not proof
+for every floating-point value or cross-backend equivalence.
+
+Each encode call creates a new builder and resets the caller's error object.
+The recovery test reuses that error object after a non-finite-value failure,
+then verifies that a valid input produces complete output with no stale error
+or path. Recovery means independence of successive calls, not resuming a
+partially written document or repairing the invalid input.
 
 ## Strings
 
