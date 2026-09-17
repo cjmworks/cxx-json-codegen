@@ -243,3 +243,45 @@ TEST_CASE("float.non_finite", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("float.round_trip", "[simdjson][encoder]") {
+    const struct {
+        const char* name;
+        FloatingValues value;
+    } cases[] = {
+        {"maximum",
+         {(std::numeric_limits<float>::max)(),
+          (std::numeric_limits<double>::max)()}},
+        {"negative_maximum",
+         {-(std::numeric_limits<float>::max)(),
+          -(std::numeric_limits<double>::max)()}},
+        {"subnormal",
+         {std::numeric_limits<float>::denorm_min(),
+          std::numeric_limits<double>::denorm_min()}},
+        {"negative_zero", {-0.0f, -0.0}},
+        {"decimal", {0.1f, 0.1}},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::EncodeError encode_error;
+            const auto json = cjm::simdjson::to_json(item.value, encode_error);
+            REQUIRE(json.has_value());
+            REQUIRE(encode_error.code == cjm::simdjson::EncodeErrorCode::none);
+            REQUIRE(encode_error.path.empty());
+            REQUIRE(encode_error.runtime_error == simdjson::SUCCESS);
+
+            cjm::simdjson::DecodeError decode_error;
+            const auto result =
+                cjm::simdjson::from_json<FloatingValues>(*json, decode_error);
+            REQUIRE(result.has_value());
+            REQUIRE(decode_error.code == cjm::simdjson::DecodeErrorCode::none);
+            REQUIRE(result->ratio == item.value.ratio);
+            REQUIRE(result->amount == item.value.amount);
+            REQUIRE(std::signbit(result->ratio) ==
+                    std::signbit(item.value.ratio));
+            REQUIRE(std::signbit(result->amount) ==
+                    std::signbit(item.value.amount));
+        }
+    }
+}
