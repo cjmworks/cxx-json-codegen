@@ -1,21 +1,26 @@
 # CJM
 
-> Build-time Metadata Compiler for Modern C++
+> Your C++ models. Reproducible JSON integration. Built with CMake.
 
-**CJM** is a build-time metadata compiler for Modern C++.
+Writing a serializer once is straightforward. Keeping serializers, schemas,
+and field-mapping rules in sync as C++ models change is the recurring work.
 
-It extracts source-level metadata from ordinary C++ declarations, builds a
-stable Metadata IR, and generates backend-specific build artifacts.
+**CJM is a build-time metadata compiler that keeps your C++ models as the source
+of truth.** It reads supported ordinary C++ declarations and generates JSON
+integration and optional JSON Schema as part of your CMake build. Change a
+registered model header, rebuild, and regenerate the integration from the same
+rules locally and in CI.
 
-The first official C++ backend generates `nlohmann/json` integration from
-Go-style field metadata. CJM can also emit JSON Schema artifacts for the
-supported Metadata IR surface.
+You do not maintain a second schema or replace your models with generated
+types. Same-name fields need no annotations; optional Go-style comments specify
+renaming, omission, or ignored fields. Generated C++ remains readable and
+compiles with your normal compiler, without intrusive macros, compiler plugins,
+or runtime reflection.
 
-Instead of writing repetitive integration code or relying on macros and runtime
-reflection, CJM generates ordinary C++ code while keeping your source files
-valid, standard C++.
-
-CJM keeps your C++ models as the source of truth. It generates the JSON integration around them, not the models themselves.
+The released C++ integration uses `nlohmann/json`. JSON Schema and experimental
+model-contract metadata are additional outputs from the same validated model.
+CJM generates integration around your types, not the types themselves or a
+replacement JSON runtime.
 
 > **Standard C++ in. Standard C++ out.**
 
@@ -60,29 +65,38 @@ for the current downstream validation record.
 
 ## Why CJM?
 
-Modern C++ still lacks a simple and ergonomic way to associate metadata with user-defined types.
+The recurring problem is model evolution, not the difficulty of writing one
+`to_json` function. When a field is added, renamed, or made optional, every
+artifact describing that model needs to follow the same mapping rules.
 
-Other languages provide elegant solutions:
+CJM makes that work part of the build:
 
-- **Go** → Struct Tags
-- **Rust** → Derive Macros
-- **C#** → Attributes
-- **Java** → Annotations
+- **One maintained model.** Supported C++ declarations are the input; JSON
+  Schema is generated output, not a second definition you keep in sync.
+- **Automatic regeneration.** `cjm_generate` tracks explicitly registered
+  headers as build dependencies. Model changes trigger regeneration before
+  dependent code is compiled.
+- **Repeatable generation.** With the same inputs, generator version, and
+  options, generation is deterministic. Pin the tool and dependencies so local
+  builds and CI use the same generation rules.
+- **Shared model facts.** Field names, ignored fields, optionality, enum
+  mappings, and nested types are validated into one Metadata IR. Backends
+  consume that model instead of independently interpreting source comments.
 
-C++ developers often have to choose between:
+### Why Not Just Write or Generate the Code Once?
 
-- intrusive macros
-- handwritten serialization code
-- runtime reflection libraries
-- compiler-specific extensions
+Handwritten or AI-assisted integration can be a reasonable choice for a small,
+stable model. A one-off generated file, however, does not by itself establish
+build dependencies, regeneration rules, or a tested mapping contract. Those
+still need to be maintained as the model evolves. CJM supplies that repeatable
+workflow; it does not compete on who can type a serializer faster.
 
-CJM aims to provide a compiler-style metadata pipeline while preserving a
-Go-like developer experience for its first JSON backend:
+CJM is a fit when supported C++ models already own your data definitions and
+you want derived artifacts to follow them. It is not a schema-first wire
+protocol system, and it does not promise cross-language bindings or automatic
+wire-compatibility management.
 
-- Build-time only
-- Standard C++
-- Compiler independent from the user's perspective
-- Easy to integrate with existing CMake projects
+Start with the CMake workflow below: [Use CJM From CMake](#use-cjm-from-cmake).
 
 ---
 
@@ -468,8 +482,19 @@ User C++ Source
  Executable
 ```
 
-The Metadata IR is the stable boundary between source-language understanding
-and backend-specific code generation.
+The Metadata IR is the shared boundary between source-language understanding
+and backend-specific code generation. For example, a field rename or ignore
+rule is resolved once, then consumed by both the C++ and JSON Schema backends.
+The same model facts also feed the experimental generated model contract for
+downstream tools.
+
+This separation lets additional backends reuse model analysis, but does not
+automatically make runtime behavior identical. Supported shapes, numeric
+limits, omission rules, and error behavior still need explicit contracts and
+conformance tests. The simdjson backend is ongoing experimental work; Glaze
+and additional serialization formats are future directions, not capabilities
+promised by the current release. See the [runtime semantic profile](docs/design/runtime-json-semantic-profile.md)
+and [roadmap](ROADMAP.md).
 
 Users only interact with standard C++ source code, CMake, generated C++ files,
 and optional generated schema artifacts.
