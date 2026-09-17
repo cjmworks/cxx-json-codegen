@@ -285,3 +285,23 @@ TEST_CASE("float.round_trip", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("flaot.encode_recovers", "[simdjson][encoder]") {
+    cjm::simdjson::EncodeError error;
+    const FloatingValues invalid{1.5f,
+                                 std::numeric_limits<double>::quiet_NaN()};
+
+    const auto failed = cjm::simdjson::to_json(invalid, error);
+    REQUIRE_FALSE(failed.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::non_finite_number);
+    REQUIRE(error.path.size() == 1);
+    REQUIRE(error.path[0].field_name == "amount");
+
+    const FloatingValues valid{1.5f, -2.25};
+    const auto recovered = cjm::simdjson::to_json(valid, error);
+    REQUIRE(recovered.has_value());
+    REQUIRE(*recovered == R"({"ratio":1.5,"amount":-2.25})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == simdjson::SUCCESS);
+}
