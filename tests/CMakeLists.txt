@@ -108,6 +108,12 @@ if (CJM_ENABLE_SIMDJSON)
     TEST_PREFIX cjm_simdjson_integer_encode_generated_tests.
   )
 
+  add_executable(cjm_simdjson_string_encode_generated_tests ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/string_encode_generated_tests.cpp)
+  target_compile_features(cjm_simdjson_string_encode_generated_tests PRIVATE cxx_std_17)
+  target_include_directories(cjm_simdjson_string_encode_generated_tests PRIVATE ${PROJECT_SOURCE_DIR})
+  target_link_libraries(cjm_simdjson_string_encode_generated_tests PRIVATE simdjson::simdjson Catch2::Catch2WithMain)
+  catch_discover_tests(cjm_simdjson_string_encode_generated_tests TEST_PREFIX cjm_simdjson_string_encode_generated_tests.)
+
   add_executable(cjm_simdjson_generator_tests
     ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/cpp_generator_tests.cpp
   )
