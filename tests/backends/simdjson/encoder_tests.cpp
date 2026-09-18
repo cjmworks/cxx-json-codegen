@@ -204,3 +204,37 @@ TEST_CASE("float.fields", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("string.guard", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "name";
+    field.json.name = "username";
+    field.type.kind = FieldTypeKind::String;
+    field.type.spelling = "std::string";
+
+    TypeModel type;
+    type.name = "User";
+    type.fields.push_back(field);
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type);
+    const auto code = out.str();
+
+    const std::string guard =
+        R"(   if (!::simdjson::validate_utf8(value.name)) {
+        error.code = EncodeErrorCode::invalid_utf8_string;
+        error.path = {{EncodePathSegmentKind::field, "username", 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
+)";
+    const auto guard_pos = code.find(guard);
+    const auto key_pos =
+        code.find(R"(builder.escape_and_append_with_quotes("username");)");
+    REQUIRE(guard_pos != std::string::npos);
+    REQUIRE(key_pos != std::string::npos);
+    REQUIRE(guard_pos + guard.size() <= key_pos);
+}

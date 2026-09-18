@@ -72,6 +72,17 @@ void generate_scalar_object_encode_function(std::ostringstream& out,
                 << "        return false;\n"
                 << "    }\n";
         }
+        if (field.type.kind == metadata::FieldTypeKind::String) {
+            out << "    if (!::simdjson::validate_utf8(value." + field.name +
+                       ")) {\n"
+                << "        error.code = "
+                   "EncodeErrorCode::invalid_utf8_string;\n"
+                << "        error.path = {{EncodePathSegmentKind::field, \"" +
+                       field.json.name + "\", 0}};\n"
+                << "        error.runtime_error = ::simdjson::UTF8_ERROR;\n"
+                << "        return false;\n"
+                << "    }\n";
+        }
         if (!first_field) {
             out << "    builder.append_comma();\n";
         }
