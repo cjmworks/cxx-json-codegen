@@ -41,6 +41,37 @@ void generate_encode_error_model(std::ostringstream& out) {
         << "#endif\n";
 }
 
+// Generate value encoding and error reporting for one enum field.
+void generate_enum_field_encode(std::ostringstream& out,
+                                const metadata::FieldModel& field,
+                                const metadata::EnumModel& enum_model) {
+    const auto& name = enum_model.qualified_name.empty()
+                           ? enum_model.name
+                           : enum_model.qualified_name;
+    const auto cpp_type = name.rfind("::", 0) == 0 ? name : "::" + name;
+
+    // 1. Generate a string write for each known enumerator.
+    bool first = true;
+    for (const auto& enumerator : enum_model.enumerators) {
+        out << (first ? "   if (" : "    else if (")
+            << "value." + field.name + " == " + cpp_type + "::"
+            << enumerator + ") {\n"
+            << "        builder.escape_and_append_with_quotes(\"" + enumerator +
+                   "\");\n"
+            << "    }\n";
+        first = false;
+    }
+
+    // 2. Generate the unmapped-value error.
+    out << (first ? "   {\n" : "    else {\n")
+        << "        error.code = EncodeErrorCode::invalid_enum_value;\n"
+        << "        error.path = {{EncodePathSegmentKind::field, \"" +
+               field.json.name + "\", 0}};\n"
+        << "        error.runtime_error = ::simdjson::SUCCESS;\n"
+        << "        return false;\n"
+        << "    }\n";
+}
+
 // Generate an object encoder for supported scalar fields.
 void generate_scalar_object_encode_function(std::ostringstream& out,
                                             const metadata::TypeModel& type) {

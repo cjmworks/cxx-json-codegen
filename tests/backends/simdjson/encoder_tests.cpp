@@ -294,3 +294,54 @@ TEST_CASE("string.fields", "[simdjson][encoder]") {
     REQUIRE(result.header.find("builder.append(value.age);") !=
             std::string::npos);
 }
+
+TEST_CASE("enum.write", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "status";
+    field.json.name = "state";
+    field.type.kind = FieldTypeKind::Enum;
+    field.type.qualified_name = "app::Status";
+
+    EnumModel model;
+    model.name = "Status";
+    model.qualified_name = "app::Status";
+    model.enumerators = {"Active", "Disabled"};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_enum_field_encode(out, field,
+                                                                 model);
+    const auto code = out.str();
+
+    const std::array cases{
+        ExpectedFragment{
+            "first enumerator",
+            R"(if (value.status == ::app::Status::Active) {
+        builder.escape_and_append_with_quotes("Active");
+    })",
+        },
+        ExpectedFragment{
+            "second enumerator",
+            R"(else if (value.status == ::app::Status::Disabled) {
+        builder.escape_and_append_with_quotes("Disabled");
+    })",
+        },
+        ExpectedFragment{
+            "unmapped value",
+            R"(else {
+        error.code = EncodeErrorCode::invalid_enum_value;
+        error.path = {{EncodePathSegmentKind::field, "state", 0}};
+        error.runtime_error = ::simdjson::SUCCESS;
+        return false;
+    })",
+        },
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            INFO(code);
+            REQUIRE(code.find(item.text) != std::string::npos);
+        }
+    }
+}
