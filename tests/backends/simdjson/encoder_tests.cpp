@@ -238,3 +238,26 @@ TEST_CASE("string.guard", "[simdjson][encoder]") {
     REQUIRE(key_pos != std::string::npos);
     REQUIRE(guard_pos + guard.size() <= key_pos);
 }
+
+TEST_CASE("string.write", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "name";
+    field.json.name = "username";
+    field.type.kind = FieldTypeKind::String;
+    field.type.spelling = "std::string";
+
+    TypeModel type;
+    type.name = "User";
+    type.fields.push_back(field);
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type);
+    const auto code = out.str();
+
+    REQUIRE(code.find("builder.escape_and_append_with_quotes(value.name);") !=
+            std::string::npos);
+    REQUIRE(code.find("builder.append(value.name);") == std::string::npos);
+}

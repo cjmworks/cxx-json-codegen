@@ -90,8 +90,14 @@ void generate_scalar_object_encode_function(std::ostringstream& out,
 
         out << "    builder.escape_and_append_with_quotes(\"" +
                    field.json.name + "\");\n"
-            << "    builder.append_colon();\n"
-            << "    builder.append(value." << field.name << ");\n";
+            << "    builder.append_colon();\n";
+
+        if (field.type.kind == metadata::FieldTypeKind::String) {
+            out << "    builder.escape_and_append_with_quotes(value." +
+                       field.name + ");\n";
+        } else {
+            out << "    builder.append(value." + field.name + ");\n";
+        }
     }
     // 3. Generate the object closing brace and return.
     out << "    builder.end_object();\n"
