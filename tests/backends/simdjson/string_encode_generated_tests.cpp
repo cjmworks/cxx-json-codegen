@@ -38,3 +38,30 @@ TEST_CASE("string.encode", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("string.invalid_utf8", "[simdjson][encoder]") {
+    const struct {
+        const char* name;
+        std::string input;
+    } cases[] = {
+        {"invalid", std::string{"\xC3\x28", 2}},
+        {"truncated", std::string{"\xC3", 1}},
+        {"invalid_after_nul", std::string{"A\0\xC3\x28", 4}},
+    };
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            const StringValues value{item.input};
+            cjm::simdjson::EncodeError error;
+            const auto result = cjm::simdjson::to_json(value, error);
+
+            REQUIRE_FALSE(result.has_value());
+            REQUIRE(error.code ==
+                    cjm::simdjson::EncodeErrorCode::invalid_utf8_string);
+            REQUIRE(error.runtime_error == ::simdjson::UTF8_ERROR);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].kind ==
+                    cjm::simdjson::EncodePathSegmentKind::field);
+            REQUIRE(error.path[0].field_name == "name");
+        }
+    }
+}
