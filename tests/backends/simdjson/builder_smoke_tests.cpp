@@ -108,3 +108,24 @@ TEST_CASE("string_builder.appends_finite_floating_values",
     REQUIRE(builder.view().get(output) == ::simdjson::SUCCESS);
     REQUIRE(output == "[1.5,-2.25]");
 }
+
+TEST_CASE("string.utf8", "[simdjson][builder]") {
+    const struct {
+        const char* name;
+        std::string_view input;
+        bool valid;
+    } cases[] = {
+        {"empty", "", true},
+        {"ascii", "hello", true},
+        {"chinese", u8"你好", true},
+        {"embedded_nul", std::string_view{"A\0B", 3}, true},
+        {"invalid", std::string_view{"\xC3\x28", 2}, false},
+        {"truncated", std::string_view{"\xC3", 1}, false},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            REQUIRE(::simdjson::validate_utf8(item.input) == item.valid);
+        }
+    }
+}
