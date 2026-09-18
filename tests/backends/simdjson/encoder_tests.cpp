@@ -261,3 +261,36 @@ TEST_CASE("string.write", "[simdjson][encoder]") {
             std::string::npos);
     REQUIRE(code.find("builder.append(value.name);") == std::string::npos);
 }
+
+TEST_CASE("string.fields", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel name;
+    name.name = "name";
+    name.json.name = "username";
+    name.type.kind = FieldTypeKind::String;
+    name.type.spelling = "std::string";
+
+    FieldModel age;
+    age.name = "age";
+    age.json.name = "age";
+    age.type.kind = FieldTypeKind::SignedInteger;
+    age.type.spelling = "int";
+
+    TypeModel type;
+    type.name = "User";
+    type.fields = {name, age};
+
+    ProjectModel project;
+    project.types.push_back(type);
+
+    const auto result = cjm::generator::simdjson::generate_header(project);
+    INFO(result.error);
+    REQUIRE(result.success);
+    REQUIRE(result.header.find("to_json<::User>") != std::string::npos);
+    REQUIRE(result.header.find(
+                "builder.escape_and_append_with_quotes(value.name);") !=
+            std::string::npos);
+    REQUIRE(result.header.find("builder.append(value.age);") !=
+            std::string::npos);
+}
