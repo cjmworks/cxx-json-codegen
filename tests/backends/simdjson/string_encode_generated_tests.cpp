@@ -65,3 +65,22 @@ TEST_CASE("string.invalid_utf8", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("string.recovers", "[simdjson][encoder]") {
+    cjm::simdjson::EncodeError error;
+
+    const StringValues invalid{std::string{"\xC3\x28", 2}};
+    const auto failed = cjm::simdjson::to_json(invalid, error);
+    REQUIRE_FALSE(failed.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::invalid_utf8_string);
+    REQUIRE_FALSE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::UTF8_ERROR);
+
+    const StringValues valid{"Ada"};
+    const auto result = cjm::simdjson::to_json(valid, error);
+    REQUIRE(result.has_value());
+    REQUIRE(*result == R"({"name":"Ada"})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
