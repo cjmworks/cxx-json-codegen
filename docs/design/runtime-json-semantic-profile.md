@@ -271,9 +271,10 @@ failed call leaves no stale code, runtime error, or path.
 
 ### Experimental simdjson encode policy
 
-Models whose participating fields are bool, supported integers, `float`, or
-`double` now have generated encoders. This is a direct-field capability, not
-support for floating-point optionals or containers. `long double` remains
+Models whose participating fields are bool, supported integers, `float`,
+`double`, or owned `std::string` now have generated encoders. This is a
+direct-field capability, not support for optionals, containers, enums, or
+nested-object encoding. `long double` remains
 unsupported; the generator must not silently narrow it to `double`.
 
 Before writing each floating-point value, generated code checks
@@ -292,8 +293,19 @@ not a universal decimal spelling or exact mathematical decimal value. This
 is sampled coverage of the current runtime/compiler environment, not proof
 for every floating-point value or cross-backend equivalence.
 
+Owned string values are checked with the official `simdjson::validate_utf8`
+before their field key or value is written, then emitted with
+`escape_and_append_with_quotes`. Explicit lengths preserve embedded NUL;
+the JSON output represents it as `\u0000`. Invalid or truncated UTF-8 reports
+`invalid_utf8_string`, runtime `UTF8_ERROR`, and the effective JSON field name.
+Failure returns no partial JSON. Runtime tests cover empty/ASCII/Chinese text,
+newline, quote, backslash, embedded NUL, invalid/truncated UTF-8, and invalid
+bytes after NUL. Generator tests separately check renamed-field error paths.
+This does not claim dynamic map-key validation or complete emitted-key handling;
+those remain part of the pending encoder scope.
+
 Each encode call creates a new builder and resets the caller's error object.
-The recovery test reuses that error object after a non-finite-value failure,
+Recovery tests reuse that error object after a non-finite-value or invalid-UTF-8 failure,
 then verifies that a valid input produces complete output with no stale error
 or path. Recovery means independence of successive calls, not resuming a
 partially written document or repairing the invalid input.

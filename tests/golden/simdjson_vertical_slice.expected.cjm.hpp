@@ -202,6 +202,67 @@ from_json<::SliceAddress>(
 
 namespace cjm::simdjson::detail {
 
+inline bool encode_object(
+    ::simdjson::builder::string_builder& builder,
+    const ::SliceAddress& value,
+    EncodeError& error) {
+    builder.start_object();
+    if (!::simdjson::validate_utf8(value.city)) {
+        error.code = EncodeErrorCode::invalid_utf8_string;
+        error.path = {{EncodePathSegmentKind::field, "city", 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
+    builder.escape_and_append_with_quotes("city");
+    builder.append_colon();
+    builder.escape_and_append_with_quotes(value.city);
+    builder.end_object();
+    return true;
+}
+
+} // namespace cjm::simdjson::detail
+
+namespace cjm::simdjson {
+
+template <>
+inline std::optional<std::string>
+to_json<::SliceAddress>(
+    const ::SliceAddress& value,
+    EncodeError& error) {
+    error = {};
+    try {
+        ::simdjson::builder::string_builder builder;
+        const bool model_valid =
+            detail::encode_object(builder, value, error);
+        std::string_view view;
+        const auto runtime_error = builder.view().get(view);
+        if (runtime_error != ::simdjson::SUCCESS) {
+            error.path.clear();
+            error.code = EncodeErrorCode::output_failure;
+            error.runtime_error = runtime_error;
+            return std::nullopt;
+        }
+        if (!model_valid) {
+            return std::nullopt;
+        }
+        return std::string(view);
+    } catch (const std::bad_alloc&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::allocation_failure;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    } catch (const std::length_error&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::size_limit_exceeded;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    }
+}
+
+} // namespace cjm::simdjson
+
+namespace cjm::simdjson::detail {
+
 inline bool decode_object(
     ::simdjson::ondemand::object& object,
     ::SliceUser& value,

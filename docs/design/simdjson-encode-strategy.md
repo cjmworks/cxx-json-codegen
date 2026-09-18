@@ -1,16 +1,16 @@
 # simdjson Encode Strategy
 
 Status: official writer and API/error contract selected under #211.
-Direct-field bool, integer, and float/double encoding is implemented with
+Direct-field bool, integer, float/double, and owned-string encoding is implemented with
 generated-code regression coverage. The broader #212/#213 encoder scope and
 #214 conformance work remain incomplete.
 
 Parent contract: [simdjson Experimental Backend MVP](simdjson-experimental-backend-mvp.md),
 epic #203. Evidence recorded on 2026-09-08 against simdjson v4.6.4.
 
-Implementation status updated on 2026-09-16. See the
-[floating-point runtime policy](runtime-json-semantic-profile.md#experimental-simdjson-encode-policy)
-for current scope, finite-value checks, round-trip coverage, and the meaning of
+Implementation status updated on 2026-09-17. See the
+[encode runtime policy](runtime-json-semantic-profile.md#experimental-simdjson-encode-policy)
+for current scope, finite-value and UTF-8 checks, escaping coverage, and the meaning of
 success-after-failure recovery. The complete contract below includes planned
 capabilities; it is not a claim that every listed shape is implemented.
 
