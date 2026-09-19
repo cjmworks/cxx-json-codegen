@@ -57,7 +57,8 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
             if (kind != metadata::FieldTypeKind::Bool &&
                 kind != metadata::FieldTypeKind::SignedInteger &&
                 kind != metadata::FieldTypeKind::UnsignedInteger &&
-                kind != metadata::FieldTypeKind::String && !supported_float) {
+                kind != metadata::FieldTypeKind::String &&
+                kind != metadata::FieldTypeKind::Enum && !supported_float) {
                 scalar_only = false;
                 break;
             }

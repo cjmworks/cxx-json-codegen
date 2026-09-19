@@ -411,3 +411,38 @@ TEST_CASE("enum.lookup", "[simdjson][encoder]") {
     REQUIRE(code.find("::other::Status") == std::string::npos);
     REQUIRE(code.find("builder.append(value.status);") == std::string::npos);
 }
+
+TEST_CASE("enum.fields", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "status";
+    field.json.name = "state";
+    field.type.kind = FieldTypeKind::Enum;
+    field.type.spelling = "Status";
+    field.type.qualified_name = "Status";
+
+    TypeModel type;
+    type.name = "EnumValues";
+    type.qualified_name = "EnumValues";
+    type.fields = {field};
+
+    EnumModel model;
+    model.name = "Status";
+    model.qualified_name = "Status";
+    model.enumerators = {"Active", "Disabled"};
+
+    ProjectModel project;
+    project.types = {type};
+    project.enums = {model};
+
+    const auto result = cjm::generator::simdjson::generate_header(project);
+    INFO(result.error);
+    REQUIRE(result.success);
+    REQUIRE(result.header.find("to_json<::EnumValues>") != std::string::npos);
+    REQUIRE(result.header.find("value.status == ::Status::Active") !=
+            std::string::npos);
+    REQUIRE(result.header.find(
+                "builder.escape_and_append_with_quotes(\"Active\");") !=
+            std::string::npos);
+}
