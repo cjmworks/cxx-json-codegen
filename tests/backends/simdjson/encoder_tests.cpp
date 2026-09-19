@@ -68,7 +68,7 @@ TEST_CASE("generate_scalar_object_encode_function.writes_two_fields",
 
     std::ostringstream out;
     cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
-        out, type);
+        out, type, {});
 
     const std::string expected = R"(namespace cjm::simdjson::detail {
 
@@ -151,7 +151,7 @@ TEST_CASE("float.guard", "[simdjson][encoder]") {
 
     std::ostringstream out;
     cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
-        out, type);
+        out, type, {});
     const auto code = out.str();
 
     const std::string guard = R"(    if (!std::isfinite(value.price)) {
@@ -220,7 +220,7 @@ TEST_CASE("string.guard", "[simdjson][encoder]") {
 
     std::ostringstream out;
     cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
-        out, type);
+        out, type, {});
     const auto code = out.str();
 
     const std::string guard =
@@ -254,7 +254,7 @@ TEST_CASE("string.write", "[simdjson][encoder]") {
 
     std::ostringstream out;
     cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
-        out, type);
+        out, type, {});
     const auto code = out.str();
 
     REQUIRE(code.find("builder.escape_and_append_with_quotes(value.name);") !=
@@ -374,4 +374,40 @@ TEST_CASE("enum.empty", "[simdjson][encoder]") {
         return false;
     })";
     REQUIRE(code.find(expected) != std::string::npos);
+}
+
+TEST_CASE("enum.lookup", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "status";
+    field.json.name = "state";
+    field.type.kind = FieldTypeKind::Enum;
+    field.type.qualified_name = "app::Status";
+
+    TypeModel type;
+    type.name = "User";
+    type.fields = {field};
+
+    EnumModel other;
+    other.name = "Status";
+    other.qualified_name = "other::Status";
+    other.enumerators = {"Unknown"};
+
+    EnumModel target;
+    target.name = "Status";
+    target.qualified_name = "app::Status";
+    target.enumerators = {"Active", "Disabled"};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type, {other, target});
+    const auto code = out.str();
+
+    REQUIRE(code.find("value.status == ::app::Status::Active") !=
+            std::string::npos);
+    REQUIRE(code.find("value.status == ::app::Status::Disabled") !=
+            std::string::npos);
+    REQUIRE(code.find("::other::Status") == std::string::npos);
+    REQUIRE(code.find("builder.append(value.status);") == std::string::npos);
 }

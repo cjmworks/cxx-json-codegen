@@ -3,6 +3,7 @@
 #include "core/ir/model.hpp"
 
 #include <iosfwd>
+#include <vector>
 
 namespace cjm::generator::simdjson::detail {
 
@@ -15,8 +16,9 @@ void generate_enum_field_encode(std::ostringstream& out,
                                 const metadata::EnumModel& enum_model);
 
 // Generate an object encoder for supported scalar fields.
-void generate_scalar_object_encode_function(std::ostringstream& out,
-                                            const metadata::TypeModel& type);
+void generate_scalar_object_encode_function(
+    std::ostringstream& out, const metadata::TypeModel& type,
+    const std::vector<metadata::EnumModel>& enums);
 
 // Generate the public root encoder for one model.
 void generate_root_encode_function(std::ostringstream& out,

@@ -64,7 +64,8 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
         }
         if (scalar_only) {
             header << "\n";
-            detail::generate_scalar_object_encode_function(header, type);
+            detail::generate_scalar_object_encode_function(header, type,
+                                                           project.enums);
             header << "\n";
             detail::generate_root_encode_function(header, type);
         }

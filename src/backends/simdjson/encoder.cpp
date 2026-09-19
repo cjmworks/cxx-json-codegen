@@ -73,8 +73,9 @@ void generate_enum_field_encode(std::ostringstream& out,
 }
 
 // Generate an object encoder for supported scalar fields.
-void generate_scalar_object_encode_function(std::ostringstream& out,
-                                            const metadata::TypeModel& type) {
+void generate_scalar_object_encode_function(
+    std::ostringstream& out, const metadata::TypeModel& type,
+    const std::vector<metadata::EnumModel>& enums) {
     const auto& name =
         type.qualified_name.empty() ? type.name : type.qualified_name;
     const auto cpp_type = name.rfind("::", 0) == 0 ? name : "::" + name;
@@ -126,6 +127,13 @@ void generate_scalar_object_encode_function(std::ostringstream& out,
         if (field.type.kind == metadata::FieldTypeKind::String) {
             out << "    builder.escape_and_append_with_quotes(value." +
                        field.name + ");\n";
+        } else if (field.type.kind == metadata::FieldTypeKind::Enum) {
+            for (const auto& enum_model : enums) {
+                if (enum_model.qualified_name == field.type.qualified_name) {
+                    generate_enum_field_encode(out, field, enum_model);
+                    break;
+                }
+            }
         } else {
             out << "    builder.append(value." + field.name + ");\n";
         }
@@ -157,11 +165,13 @@ void generate_root_encode_function(std::ostringstream& out,
         << "    try {\n"
         << "        ::simdjson::builder::string_builder builder;\n"
         << "        const bool model_valid =\n"
-        << "            detail::encode_object(builder, value, error);\n";
+        << "            detail::encode_object(builder, value, "
+           "error);\n";
 
     // 2. Generate buider-result checking and the owned output.
     out << "        std::string_view view;\n"
-        << "        const auto runtime_error = builder.view().get(view);\n"
+        << "        const auto runtime_error = "
+           "builder.view().get(view);\n"
         << "        if (runtime_error != ::simdjson::SUCCESS) {\n"
         << "            error.path.clear();\n"
         << "            error.code = EncodeErrorCode::output_failure;\n"
@@ -181,7 +191,8 @@ void generate_root_encode_function(std::ostringstream& out,
         << "        return std::nullopt;\n"
         << "    } catch (const std::length_error&) {\n"
         << "        error.path.clear();\n"
-        << "        error.code = EncodeErrorCode::size_limit_exceeded;\n"
+        << "        error.code = "
+           "EncodeErrorCode::size_limit_exceeded;\n"
         << "        error.runtime_error = ::simdjson::SUCCESS;\n"
         << "        return std::nullopt;\n"
         << "    }\n"
