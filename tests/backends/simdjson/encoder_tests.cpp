@@ -345,3 +345,33 @@ TEST_CASE("enum.write", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("enum.empty", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "status";
+    field.json.name = "state";
+    field.type.kind = FieldTypeKind::Enum;
+
+    EnumModel model;
+    model.name = "Status";
+    // No named enumerators.
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_enum_field_encode(out, field,
+                                                                 model);
+    const auto code = out.str();
+
+    REQUIRE(code.find("if (") == std::string::npos);
+    REQUIRE(code.find("else") == std::string::npos);
+    REQUIRE(code.find("builder.") == std::string::npos);
+
+    const std::string expected = R"({
+        error.code = EncodeErrorCode::invalid_enum_value;
+        error.path = {{EncodePathSegmentKind::field, "state", 0}};
+        error.runtime_error = ::simdjson::SUCCESS;
+        return false;
+    })";
+    REQUIRE(code.find(expected) != std::string::npos);
+}
