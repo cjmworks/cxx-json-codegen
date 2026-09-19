@@ -1,5 +1,6 @@
 list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
 include(Catch)
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/SimdjsonTests.cmake")
 
 add_executable(cjm_tree_sitter_adapter_tests
   ${PROJECT_SOURCE_DIR}/tests/frontends/cxx/tree_sitter/adapter_tests.cpp
@@ -63,6 +64,7 @@ if (CJM_ENABLE_SIMDJSON)
     ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/encoder_tests.cpp
   )
   target_compile_features(cjm_simdjson_encoder_tests PRIVATE cxx_std_17)
+  target_include_directories(cjm_simdjson_encoder_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests)
   target_link_libraries(
     cjm_simdjson_encoder_tests
     PRIVATE cjm_simdjson_generator Catch2::Catch2WithMain
@@ -119,6 +121,8 @@ if (CJM_ENABLE_SIMDJSON)
   target_include_directories(cjm_simdjson_enum_encode_generated_tests PRIVATE ${PROJECT_SOURCE_DIR})
   target_link_libraries(cjm_simdjson_enum_encode_generated_tests PRIVATE simdjson::simdjson Catch2::Catch2WithMain)
   catch_discover_tests(cjm_simdjson_enum_encode_generated_tests TEST_PREFIX cjm_simdjson_enum_encode_generated_tests.)
+
+  cjm_add_simdjson_test(cjm_simdjson_optional_encode_generated_tests SOURCE backends/simdjson/optional_encode_generated_tests.cpp MODEL fixtures/simdjson_optional_encode.hpp)
 
   add_executable(cjm_simdjson_generator_tests
     ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/cpp_generator_tests.cpp

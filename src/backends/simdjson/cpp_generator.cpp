@@ -54,11 +54,24 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
             const bool supported_float =
                 kind == metadata::FieldTypeKind::FloatingPoint &&
                 (type_name == "float" || type_name == "double");
+
+            bool supported_optional = false;
+            if (kind == metadata::FieldTypeKind::Optional &&
+                field.type.arguments.size() == 1) {
+                const auto inner_kind = field.type.arguments[0].kind;
+                supported_optional =
+                    inner_kind == metadata::FieldTypeKind::Bool ||
+                    inner_kind == metadata::FieldTypeKind::SignedInteger ||
+                    inner_kind == metadata::FieldTypeKind::UnsignedInteger ||
+                    inner_kind == metadata::FieldTypeKind::String;
+            }
+
             if (kind != metadata::FieldTypeKind::Bool &&
                 kind != metadata::FieldTypeKind::SignedInteger &&
                 kind != metadata::FieldTypeKind::UnsignedInteger &&
                 kind != metadata::FieldTypeKind::String &&
-                kind != metadata::FieldTypeKind::Enum && !supported_float) {
+                kind != metadata::FieldTypeKind::Enum && !supported_float &&
+                !supported_optional) {
                 scalar_only = false;
                 break;
             }

@@ -90,6 +90,34 @@ void generate_value_encode(std::ostringstream& out,
     case metadata::FieldTypeKind::UnsignedInteger:
         out << indent << "builder.append(" << value_expression << ");\n";
         return;
+    case metadata::FieldTypeKind::String:
+        out << indent << "if (!::simdjson::validate_utf8(" << value_expression
+            << ")) {\n"
+            << indent << "    "
+            << "error.code = EncodeErrorCode::invalid_utf8_string;\n"
+            << indent << "    "
+            << "error.path = {{EncodePathSegmentKind::field, \"" +
+                   field.json.name + "\", 0}};\n"
+            << indent << "    "
+            << "error.runtime_error = ::simdjson::UTF8_ERROR;\n"
+            << indent << "    " << "return false;\n"
+            << indent << "}\n";
+        out << indent << "builder.escape_and_append_with_quotes("
+            << value_expression << ");\n";
+        return;
+    case metadata::FieldTypeKind::Optional: {
+        const auto expression = "(" + std::string(value_expression) + ")";
+        out << indent << "if (" + expression + ".has_value()) {\n";
+
+        generate_value_encode(out, field, value_type.arguments.at(0),
+                              "*" + expression, enums, indent_level + 1);
+
+        out << indent << "} else {\n"
+            << indent << "    builder.append_null();\n"
+            << indent << "}\n";
+        return;
+    }
+
     default:
         throw std::logic_error("generate_value_encode: unimplemented type");
     }
@@ -156,7 +184,10 @@ void generate_scalar_object_encode_function(
                    field.json.name + "\");\n"
             << "    builder.append_colon();\n";
 
-        if (field.type.kind == metadata::FieldTypeKind::String) {
+        if (field.type.kind == metadata::FieldTypeKind::Optional) {
+            generate_value_encode(out, field, field.type, "value." + field.name,
+                                  enums, omit_disengaged ? 2 : 1);
+        } else if (field.type.kind == metadata::FieldTypeKind::String) {
             out << "    builder.escape_and_append_with_quotes(value." +
                        field.name + ");\n";
         } else if (field.type.kind == metadata::FieldTypeKind::Enum) {

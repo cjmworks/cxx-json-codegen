@@ -1,4 +1,5 @@
 #include "backends/simdjson/cpp_generator.hpp"
+#include "support/golden_diff.hpp"
 #include "backends/simdjson/encoder.h"
 #include <catch2/catch_test_macros.hpp>
 
@@ -526,5 +527,154 @@ TEST_CASE("value.scalars", "[simdjson][encoder]") {
                 out, field, value_type, item.expression, {}, item.indent);
             REQUIRE(out.str() == item.expected);
         }
+    }
+}
+
+TEST_CASE("value.optional", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldType inner;
+    inner.kind = FieldTypeKind::SignedInteger;
+
+    FieldModel field;
+    field.name = "count";
+    field.json.name = "count";
+    field.type.kind = FieldTypeKind::Optional;
+    field.type.arguments = {inner};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_value_encode(
+        out, field, field.type, "value.count", {}, 1);
+
+    const std::string expected = "    if ((value.count).has_value()) {\n"
+                                 "        builder.append(*(value.count));\n"
+                                 "    } else {\n"
+                                 "        builder.append_null();\n"
+                                 "    }\n";
+
+    REQUIRE(out.str() == expected);
+}
+
+TEST_CASE("optional.omission", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldType inner;
+    inner.kind = FieldTypeKind::SignedInteger;
+
+    FieldModel field;
+    field.name = "count";
+    field.json.name = "total";
+    field.json.omit_empty = true;
+    field.type.kind = FieldTypeKind::Optional;
+    field.type.arguments = {inner};
+
+    TypeModel type;
+    type.name = "Counts";
+    type.fields = {field};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type, {});
+    const auto code = out.str();
+
+    const std::string expected =
+        "    if (value.count.has_value()) {\n"
+        "    if (!first_field) {\n"
+        "        builder.append_comma();\n"
+        "    }\n"
+        "    first_field = false;\n"
+        "    builder.escape_and_append_with_quotes(\"total\");\n"
+        "    builder.append_colon();\n"
+        "        if ((value.count).has_value()) {\n"
+        "            builder.append(*(value.count));\n"
+        "        } else {\n"
+        "            builder.append_null();\n"
+        "        }\n"
+        "    }\n"
+        "    builder.end_object();\n";
+    REQUIRE(code.find(expected) != std::string::npos);
+}
+
+TEST_CASE("optional.fields", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    const struct {
+        const char* name;
+        FieldTypeKind kind;
+        const char* spelling;
+        bool encodable;
+    } cases[] = {
+        {"bool", FieldTypeKind::Bool, "bool", true},
+        {"signed", FieldTypeKind::SignedInteger, "int", true},
+        {"unsigned", FieldTypeKind::UnsignedInteger, "unsigned int", true},
+        {"string", FieldTypeKind::String, "std::string", true},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            FieldType inner;
+            inner.kind = item.kind;
+            inner.spelling = item.spelling;
+            inner.qualified_name = item.spelling;
+
+            FieldModel field;
+            field.name = "value";
+            field.json.name = "value";
+            field.type.kind = FieldTypeKind::Optional;
+            field.type.spelling =
+                "std::optional<" + std::string(item.spelling) + ">";
+            field.type.qualified_name = "std::optional";
+            field.type.arguments = {inner};
+
+            TypeModel type;
+            type.name = "OptionalValues";
+            type.qualified_name = "OptionalValues";
+            type.fields = {field};
+
+            ProjectModel project;
+            project.types = {type};
+
+            const auto result =
+                cjm::generator::simdjson::generate_header(project);
+            INFO(result.error);
+            REQUIRE(result.success);
+
+            const bool has_encoder =
+                result.header.find("to_json<::OptionalValues>") !=
+                std::string::npos;
+            REQUIRE(has_encoder == item.encodable);
+        }
+    }
+}
+
+TEST_CASE("value.string", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldType inner;
+    inner.kind = FieldTypeKind::String;
+
+    FieldModel field;
+    field.name = "name";
+    field.json.name = "username";
+    field.type.kind = FieldTypeKind::Optional;
+    field.type.arguments = {inner};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_value_encode(
+        out, field, inner, "*(value.name)", {}, 2);
+
+    const std::string expected =
+        "        if (!::simdjson::validate_utf8(*(value.name))) {\n"
+        "            error.code = EncodeErrorCode::invalid_utf8_string;\n"
+        "            error.path = {{EncodePathSegmentKind::field, "
+        "\"username\", 0}};\n"
+        "            error.runtime_error = ::simdjson::UTF8_ERROR;\n"
+        "            return false;\n"
+        "        }\n"
+        "        builder.escape_and_append_with_quotes(*(value.name));\n";
+
+    const auto actual = out.str();
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
     }
 }
