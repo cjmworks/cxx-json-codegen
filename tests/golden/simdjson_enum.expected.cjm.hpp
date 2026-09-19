@@ -213,3 +213,69 @@ from_json<::EnumValues>(
 }
 
 } // namespace cjm::simdjson
+
+namespace cjm::simdjson::detail {
+
+inline bool encode_object(
+    ::simdjson::builder::string_builder& builder,
+    const ::EnumValues& value,
+    EncodeError& error) {
+    builder.start_object();
+    builder.escape_and_append_with_quotes("status");
+    builder.append_colon();
+   if (value.status == ::Status::Active) {
+        builder.escape_and_append_with_quotes("Active");
+    }
+    else if (value.status == ::Status::Disabled) {
+        builder.escape_and_append_with_quotes("Disabled");
+    }
+    else {
+        error.code = EncodeErrorCode::invalid_enum_value;
+        error.path = {{EncodePathSegmentKind::field, "status", 0}};
+        error.runtime_error = ::simdjson::SUCCESS;
+        return false;
+    }
+    builder.end_object();
+    return true;
+}
+
+} // namespace cjm::simdjson::detail
+
+namespace cjm::simdjson {
+
+template <>
+inline std::optional<std::string>
+to_json<::EnumValues>(
+    const ::EnumValues& value,
+    EncodeError& error) {
+    error = {};
+    try {
+        ::simdjson::builder::string_builder builder;
+        const bool model_valid =
+            detail::encode_object(builder, value, error);
+        std::string_view view;
+        const auto runtime_error = builder.view().get(view);
+        if (runtime_error != ::simdjson::SUCCESS) {
+            error.path.clear();
+            error.code = EncodeErrorCode::output_failure;
+            error.runtime_error = runtime_error;
+            return std::nullopt;
+        }
+        if (!model_valid) {
+            return std::nullopt;
+        }
+        return std::string(view);
+    } catch (const std::bad_alloc&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::allocation_failure;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    } catch (const std::length_error&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::size_limit_exceeded;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    }
+}
+
+} // namespace cjm::simdjson
