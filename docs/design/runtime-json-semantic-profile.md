@@ -272,8 +272,8 @@ failed call leaves no stale code, runtime error, or path.
 ### Experimental simdjson encode policy
 
 Models whose participating fields are bool, supported integers, `float`,
-`double`, or owned `std::string` now have generated encoders. This is a
-direct-field capability, not support for optionals, containers, enums, or
+`double`, owned `std::string`, or enums with Metadata IR definitions now have
+generated encoders. This is a direct-field capability, not support for optionals, containers, or
 nested-object encoding. `long double` remains
 unsupported; the generator must not silently narrow it to `double`.
 
@@ -304,9 +304,21 @@ bytes after NUL. Generator tests separately check renamed-field error paths.
 This does not claim dynamic map-key validation or complete emitted-key handling;
 those remain part of the pending encoder scope.
 
+Enum fields use the matching Metadata IR enum definition, selected by qualified
+type name at generation time. Generated comparisons map known values to their
+enumerator-name strings and write them with the official escaping function.
+An unmapped value reports `invalid_enum_value`, the effective JSON field name,
+and runtime `SUCCESS`: this is a CJM mapping error, not a writer error. No partial
+JSON is returned. Runtime tests cover both named values of the test enum,
+an unmapped value, and success after failure. Generator tests cover renamed
+error paths, qualified-name lookup, the public generation entry point, and the
+empty-enum helper branch. The empty-enum test checks generated text only;
+it does not establish end-to-end empty-enum support. Optional enums, enum
+containers, and custom enum rename policies are outside this completed slice.
+
 Each encode call creates a new builder and resets the caller's error object.
-Recovery tests reuse that error object after a non-finite-value or invalid-UTF-8 failure,
-then verifies that a valid input produces complete output with no stale error
+Recovery tests reuse that error object after a non-finite-value, invalid-UTF-8,
+or unmapped-enum failure, then verify that a valid input produces complete output with no stale error
 or path. Recovery means independence of successive calls, not resuming a
 partially written document or repairing the invalid input.
 
