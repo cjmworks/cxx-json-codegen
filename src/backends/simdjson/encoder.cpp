@@ -1,6 +1,8 @@
 #include "backends/simdjson/encoder.h"
 
 #include <sstream>
+#include <stdexcept>
+#include <string>
 
 namespace cjm::generator::simdjson::detail {
 
@@ -72,6 +74,27 @@ void generate_enum_field_encode(std::ostringstream& out,
         << "    }\n";
 }
 
+// Generate validation and encoding for one value expression.
+void generate_value_encode(std::ostringstream& out,
+                           const metadata::FieldModel& field,
+                           const metadata::FieldType& value_type,
+                           std::string_view value_expression,
+                           const std::vector<metadata::EnumModel>& enums,
+                           std::size_t indent_level) {
+
+    const std::string indent(indent_level * 4, ' ');
+
+    switch (value_type.kind) {
+    case metadata::FieldTypeKind::Bool:
+    case metadata::FieldTypeKind::SignedInteger:
+    case metadata::FieldTypeKind::UnsignedInteger:
+        out << indent << "builder.append(" << value_expression << ");\n";
+        return;
+    default:
+        throw std::logic_error("generate_value_encode: unimplemented type");
+    }
+}
+
 // Generate an object encoder for supported scalar fields.
 void generate_scalar_object_encode_function(
     std::ostringstream& out, const metadata::TypeModel& type,
@@ -87,14 +110,22 @@ void generate_scalar_object_encode_function(
         << "    ::simdjson::builder::string_builder& builder,\n"
         << "    const " + cpp_type + "& value,\n"
         << "    EncodeError& error) {\n"
-        << "    builder.start_object();\n";
+        << "    builder.start_object();\n"
+        << "    bool first_field = true;\n";
 
     // 2. Gnerate writes for participating scalar fields.
-    bool first_field = true;
     for (const auto& field : type.fields) {
         if (field.json.ignored) {
             continue;
         }
+
+        const bool omit_disengaged =
+            field.type.kind == metadata::FieldTypeKind::Optional &&
+            field.json.omit_empty;
+        if (omit_disengaged) {
+            out << "    if (value." + field.name + ".has_value()) {\n";
+        }
+
         if (field.type.kind == metadata::FieldTypeKind::FloatingPoint) {
             out << "    if (!std::isfinite(value." + field.name + ")) {\n"
                 << "        error.code = EncodeErrorCode::non_finite_number;\n"
@@ -115,10 +146,11 @@ void generate_scalar_object_encode_function(
                 << "        return false;\n"
                 << "    }\n";
         }
-        if (!first_field) {
-            out << "    builder.append_comma();\n";
-        }
-        first_field = false;
+
+        out << "    if (!first_field) {\n"
+            << "        builder.append_comma();\n"
+            << "    }\n"
+            << "    first_field = false;\n";
 
         out << "    builder.escape_and_append_with_quotes(\"" +
                    field.json.name + "\");\n"
@@ -136,6 +168,9 @@ void generate_scalar_object_encode_function(
             }
         } else {
             out << "    builder.append(value." + field.name + ");\n";
+        }
+        if (omit_disengaged) {
+            out << "    }\n";
         }
     }
     // 3. Generate the object closing brace and return.

@@ -2,8 +2,9 @@
 
 #include "core/ir/model.hpp"
 
+#include <cstddef>
 #include <iosfwd>
-#include <vector>
+#include <string_view>
 
 namespace cjm::generator::simdjson::detail {
 
@@ -14,6 +15,14 @@ void generate_encode_error_model(std::ostringstream& out);
 void generate_enum_field_encode(std::ostringstream& out,
                                 const metadata::FieldModel& field,
                                 const metadata::EnumModel& enum_model);
+
+// Generate validation and encoding for one value expression.
+void generate_value_encode(std::ostringstream& out,
+                           const metadata::FieldModel& field,
+                           const metadata::FieldType& value_type,
+                           std::string_view value_expression,
+                           const std::vector<metadata::EnumModel>& enums,
+                           std::size_t indent_level);
 
 // Generate an object encoder for supported scalar fields.
 void generate_scalar_object_encode_function(

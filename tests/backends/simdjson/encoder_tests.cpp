@@ -77,10 +77,18 @@ inline bool encode_object(
     const ::BoolValues& value,
     EncodeError& error) {
     builder.start_object();
+    bool first_field = true;
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("active");
     builder.append_colon();
     builder.append(value.enabled);
-    builder.append_comma();
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("visible");
     builder.append_colon();
     builder.append(value.visible);
@@ -445,4 +453,78 @@ TEST_CASE("enum.fields", "[simdjson][encoder]") {
     REQUIRE(result.header.find(
                 "builder.escape_and_append_with_quotes(\"Active\");") !=
             std::string::npos);
+}
+
+TEST_CASE("object.commas", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel first;
+    first.name = "enabled";
+    first.json.name = "enabled";
+    first.type.kind = FieldTypeKind::Bool;
+
+    FieldModel second = first;
+    second.name = "visible";
+    second.json.name = "visible";
+
+    TypeModel type;
+    type.name = "Flags";
+    type.fields = {first, second};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type, {});
+    const auto code = out.str();
+
+    const auto init = code.find("bool first_field = true;");
+    REQUIRE(init != std::string::npos);
+
+    for (const auto* name : {"enabled", "visible"}) {
+        DYNAMIC_SECTION(name) {
+            const std::string expected =
+                "    if (!first_field) {\n"
+                "        builder.append_comma();\n"
+                "    }\n"
+                "    first_field = false;\n"
+                "    builder.escape_and_append_with_quotes(\"" +
+                std::string(name) + "\");";
+            const auto write = code.find(expected);
+            REQUIRE(write != std::string::npos);
+            REQUIRE(init < write);
+        }
+    }
+}
+
+TEST_CASE("value.scalars", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    const struct {
+        const char* name;
+        FieldTypeKind kind;
+        std::string_view expression;
+        std::size_t indent;
+        std::string_view expected;
+    } cases[] = {
+        {"bool", FieldTypeKind::Bool, "value.enabled", 1,
+         "    builder.append(value.enabled);\n"},
+        {"signed", FieldTypeKind::SignedInteger, "value.count", 1,
+         "    builder.append(value.count);\n"},
+        {"unsigned", FieldTypeKind::UnsignedInteger, "value.limit", 1,
+         "    builder.append(value.limit);\n"},
+        {"dereferenced", FieldTypeKind::SignedInteger, "*value.count", 1,
+         "    builder.append(*value.count);\n"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            FieldModel field;
+            FieldType value_type;
+            value_type.kind = item.kind;
+
+            std::ostringstream out;
+            cjm::generator::simdjson::detail::generate_value_encode(
+                out, field, value_type, item.expression, {}, item.indent);
+            REQUIRE(out.str() == item.expected);
+        }
+    }
 }
