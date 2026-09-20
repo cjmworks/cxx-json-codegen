@@ -63,7 +63,8 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
                     inner_kind == metadata::FieldTypeKind::Bool ||
                     inner_kind == metadata::FieldTypeKind::SignedInteger ||
                     inner_kind == metadata::FieldTypeKind::UnsignedInteger ||
-                    inner_kind == metadata::FieldTypeKind::String;
+                    inner_kind == metadata::FieldTypeKind::String ||
+                    inner_kind == metadata::FieldTypeKind::Enum;
             }
 
             if (kind != metadata::FieldTypeKind::Bool &&

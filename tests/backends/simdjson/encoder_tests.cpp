@@ -608,6 +608,7 @@ TEST_CASE("optional.fields", "[simdjson][encoder]") {
         {"signed", FieldTypeKind::SignedInteger, "int", true},
         {"unsigned", FieldTypeKind::UnsignedInteger, "unsigned int", true},
         {"string", FieldTypeKind::String, "std::string", true},
+        {"enum", FieldTypeKind::Enum, "Status", true},
     };
 
     for (const auto& item : cases) {
@@ -633,6 +634,13 @@ TEST_CASE("optional.fields", "[simdjson][encoder]") {
 
             ProjectModel project;
             project.types = {type};
+            if (item.kind == FieldTypeKind::Enum) {
+                EnumModel model;
+                model.name = "Status";
+                model.qualified_name = "Status";
+                model.enumerators = {"Active", "Disabled"};
+                project.enums = {model};
+            }
 
             const auto result =
                 cjm::generator::simdjson::generate_header(project);
