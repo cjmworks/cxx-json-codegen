@@ -320,7 +320,7 @@ TEST_CASE("enum.write", "[simdjson][encoder]") {
 
     std::ostringstream out;
     cjm::generator::simdjson::detail::generate_enum_field_encode(
-        out, field, model, "value.status");
+        out, field, model, "value.status", 1);
     const auto code = out.str();
 
     const std::array cases{
@@ -369,7 +369,7 @@ TEST_CASE("enum.empty", "[simdjson][encoder]") {
 
     std::ostringstream out;
     cjm::generator::simdjson::detail::generate_enum_field_encode(
-        out, field, model, "value.status");
+        out, field, model, "value.status", 1);
     const auto code = out.str();
 
     REQUIRE(code.find("if (") == std::string::npos);

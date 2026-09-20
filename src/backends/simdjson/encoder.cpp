@@ -47,31 +47,36 @@ void generate_encode_error_model(std::ostringstream& out) {
 void generate_enum_field_encode(std::ostringstream& out,
                                 const metadata::FieldModel& field,
                                 const metadata::EnumModel& enum_model,
-                                std::string_view value_expression) {
+                                std::string_view value_expression,
+                                std::size_t indent_level) {
     const auto& name = enum_model.qualified_name.empty()
                            ? enum_model.name
                            : enum_model.qualified_name;
     const auto cpp_type = name.rfind("::", 0) == 0 ? name : "::" + name;
+    const std::string indent(indent_level * 4, ' ');
 
     // 1. Generate a string write for each known enumerator.
     bool first = true;
     for (const auto& enumerator : enum_model.enumerators) {
-        out << (first ? "   if (" : "    else if (") << value_expression
-            << " == " << cpp_type + "::" << enumerator << ") {\n"
-            << "        builder.escape_and_append_with_quotes(\"" + enumerator +
+        out << indent << (first ? "   if (" : "    else if (")
+            << value_expression << " == " << cpp_type + "::" << enumerator
+            << ") {\n"
+            << indent
+            << "    builder.escape_and_append_with_quotes(\"" + enumerator +
                    "\");\n"
-            << "    }\n";
+            << indent << "}\n";
         first = false;
     }
 
     // 2. Generate the unmapped-value error.
-    out << (first ? "   {\n" : "    else {\n")
-        << "        error.code = EncodeErrorCode::invalid_enum_value;\n"
-        << "        error.path = {{EncodePathSegmentKind::field, \"" +
+    out << indent << (first ? "   {\n" : "    else {\n") << indent
+        << "    error.code = EncodeErrorCode::invalid_enum_value;\n"
+        << indent
+        << "    error.path = {{EncodePathSegmentKind::field, \"" +
                field.json.name + "\", 0}};\n"
-        << "        error.runtime_error = ::simdjson::SUCCESS;\n"
-        << "        return false;\n"
-        << "    }\n";
+        << indent << "    error.runtime_error = ::simdjson::SUCCESS;\n"
+        << indent << "    return false;\n"
+        << indent << "}\n";
 }
 
 // Generate validation and encoding for one value expression.
@@ -194,7 +199,7 @@ void generate_scalar_object_encode_function(
             for (const auto& enum_model : enums) {
                 if (enum_model.qualified_name == field.type.qualified_name) {
                     generate_enum_field_encode(out, field, enum_model,
-                                               "value." + field.name);
+                                               "value." + field.name, 1);
                     break;
                 }
             }
