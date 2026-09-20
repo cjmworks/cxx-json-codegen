@@ -58,9 +58,8 @@ void generate_enum_field_encode(std::ostringstream& out,
     // 1. Generate a string write for each known enumerator.
     bool first = true;
     for (const auto& enumerator : enum_model.enumerators) {
-        out << indent << (first ? "   if (" : "    else if (")
-            << value_expression << " == " << cpp_type + "::" << enumerator
-            << ") {\n"
+        out << indent << (first ? "if (" : "else if (") << value_expression
+            << " == " << cpp_type + "::" << enumerator << ") {\n"
             << indent
             << "    builder.escape_and_append_with_quotes(\"" + enumerator +
                    "\");\n"
@@ -69,7 +68,7 @@ void generate_enum_field_encode(std::ostringstream& out,
     }
 
     // 2. Generate the unmapped-value error.
-    out << indent << (first ? "   {\n" : "    else {\n") << indent
+    out << indent << (first ? "{\n" : "else {\n") << indent
         << "    error.code = EncodeErrorCode::invalid_enum_value;\n"
         << indent
         << "    error.path = {{EncodePathSegmentKind::field, \"" +

@@ -678,3 +678,38 @@ TEST_CASE("value.string", "[simdjson][encoder]") {
         FAIL(cjm::test::format_golden_mismatch(expected, actual));
     }
 }
+
+TEST_CASE("enum.expression", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "status";
+    field.json.name = "state";
+    field.type.kind = FieldTypeKind::Optional;
+
+    EnumModel model;
+    model.name = "Status";
+    model.qualified_name = "app::Status";
+    model.enumerators = {"Active"};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_enum_field_encode(
+        out, field, model, "*(value.status)", 2);
+
+    const std::string expected =
+        "        if (*(value.status) == ::app::Status::Active) {\n"
+        "            builder.escape_and_append_with_quotes(\"Active\");\n"
+        "        }\n"
+        "        else {\n"
+        "            error.code = EncodeErrorCode::invalid_enum_value;\n"
+        "            error.path = {{EncodePathSegmentKind::field, \"state\", "
+        "0}};\n"
+        "            error.runtime_error = ::simdjson::SUCCESS;\n"
+        "            return false;\n"
+        "        }\n";
+
+    const auto actual = out.str();
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
+    }
+}
