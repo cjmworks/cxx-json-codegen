@@ -713,3 +713,48 @@ TEST_CASE("enum.expression", "[simdjson][encoder]") {
         FAIL(cjm::test::format_golden_mismatch(expected, actual));
     }
 }
+
+TEST_CASE("value.optional_enum", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldType inner;
+    inner.kind = FieldTypeKind::Enum;
+    inner.qualified_name = "app::Status";
+
+    FieldModel field;
+    field.name = "status";
+    field.json.name = "state";
+    field.type.kind = FieldTypeKind::Optional;
+    field.type.qualified_name = "std::optional";
+    field.type.arguments = {inner};
+
+    EnumModel model;
+    model.name = "Status";
+    model.qualified_name = "app::Status";
+    model.enumerators = {"Active"};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_value_encode(
+        out, field, field.type, "value.status", {model}, 1);
+
+    const std::string expected =
+        "    if ((value.status).has_value()) {\n"
+        "        if (*(value.status) == ::app::Status::Active) {\n"
+        "            builder.escape_and_append_with_quotes(\"Active\");\n"
+        "        }\n"
+        "        else {\n"
+        "            error.code = EncodeErrorCode::invalid_enum_value;\n"
+        "            error.path = {{EncodePathSegmentKind::field, \"state\", "
+        "0}};\n"
+        "            error.runtime_error = ::simdjson::SUCCESS;\n"
+        "            return false;\n"
+        "        }\n"
+        "    } else {\n"
+        "        builder.append_null();\n"
+        "    }\n";
+
+    const auto actual = out.str();
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
+    }
+}

@@ -109,6 +109,15 @@ void generate_value_encode(std::ostringstream& out,
         out << indent << "builder.escape_and_append_with_quotes("
             << value_expression << ");\n";
         return;
+    case metadata::FieldTypeKind::Enum:
+        for (const auto& enum_model : enums) {
+            if (enum_model.qualified_name == value_type.qualified_name) {
+                generate_enum_field_encode(out, field, enum_model,
+                                           value_expression, indent_level);
+                return;
+            }
+        }
+        throw std::logic_error("generate_value_encode: missing enum model");
     case metadata::FieldTypeKind::Optional: {
         const auto expression = "(" + std::string(value_expression) + ")";
         out << indent << "if (" + expression + ".has_value()) {\n";
