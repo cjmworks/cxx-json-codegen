@@ -23,3 +23,8 @@ enum class OptionalStatus {
 struct OptionalEnumValues {
     std::optional<OptionalStatus> status; // json:"state"
 };
+
+struct OptionalFloatValues {
+    std::optional<float> ratio; // json:"ratio,omitempty"
+    std::optional<double> amount;
+};
