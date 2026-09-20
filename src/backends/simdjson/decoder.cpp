@@ -148,7 +148,12 @@ bool is_supported_optional_field(
         return find_enum_model(enums, type.arguments[0]) != nullptr;
     case metadata::FieldTypeKind::Vector:
         return is_supported_vector_field(type.arguments[0], enums);
-    case metadata::FieldTypeKind::FloatingPoint:
+    case metadata::FieldTypeKind::FloatingPoint: {
+        const auto& inner = type.arguments[0];
+        const auto& name = inner.qualified_name.empty() ? inner.spelling
+                                                        : inner.qualified_name;
+        return name == "float" || name == "double";
+    }
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
