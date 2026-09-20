@@ -94,6 +94,17 @@ void generate_value_encode(std::ostringstream& out,
     case metadata::FieldTypeKind::UnsignedInteger:
         out << indent << "builder.append(" << value_expression << ");\n";
         return;
+    case metadata::FieldTypeKind::FloatingPoint:
+        out << indent << "if (!std::isfinite(" << value_expression << ")) {\n"
+            << indent
+            << "    error.code = EncodeErrorCode::non_finite_number;\n"
+            << indent << "    error.path = {{EncodePathSegmentKind::field, \""
+            << field.json.name << "\", 0}};\n"
+            << indent << "    error.runtime_error = ::simdjson::SUCCESS;\n"
+            << indent << "    return false;\n"
+            << indent << "}\n"
+            << indent << "builder.append(" << value_expression << ");\n";
+        return;
     case metadata::FieldTypeKind::String:
         out << indent << "if (!::simdjson::validate_utf8(" << value_expression
             << ")) {\n"

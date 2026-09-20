@@ -766,3 +766,40 @@ TEST_CASE("value.optional_enum", "[simdjson][encoder]") {
         FAIL(cjm::test::format_golden_mismatch(expected, actual));
     }
 }
+
+TEST_CASE("value.optional_float", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldType inner;
+    inner.kind = FieldTypeKind::FloatingPoint;
+    inner.spelling = "double";
+    inner.qualified_name = "double";
+
+    FieldModel field;
+    field.name = "ratio";
+    field.json.name = "fraction";
+    field.type.kind = FieldTypeKind::Optional;
+    field.type.arguments = {inner};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_value_encode(
+        out, field, field.type, "value.ratio", {}, 1);
+
+    const std::string expected =
+        "    if ((value.ratio).has_value()) {\n"
+        "        if (!std::isfinite(*(value.ratio))) {\n"
+        "            error.code = EncodeErrorCode::non_finite_number;\n"
+        "            error.path = {{EncodePathSegmentKind::field, "
+        "\"fraction\", 0}};\n"
+        "            error.runtime_error = ::simdjson::SUCCESS;\n"
+        "            return false;\n"
+        "        }\n"
+        "        builder.append(*(value.ratio));\n"
+        "    } else {\n"
+        "        builder.append_null();\n"
+        "    }\n";
+    const auto actual = out.str();
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
+    }
+}
