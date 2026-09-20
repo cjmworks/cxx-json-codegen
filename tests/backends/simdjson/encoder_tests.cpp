@@ -319,8 +319,8 @@ TEST_CASE("enum.write", "[simdjson][encoder]") {
     model.enumerators = {"Active", "Disabled"};
 
     std::ostringstream out;
-    cjm::generator::simdjson::detail::generate_enum_field_encode(out, field,
-                                                                 model);
+    cjm::generator::simdjson::detail::generate_enum_field_encode(
+        out, field, model, "value.status");
     const auto code = out.str();
 
     const std::array cases{
@@ -368,8 +368,8 @@ TEST_CASE("enum.empty", "[simdjson][encoder]") {
     // No named enumerators.
 
     std::ostringstream out;
-    cjm::generator::simdjson::detail::generate_enum_field_encode(out, field,
-                                                                 model);
+    cjm::generator::simdjson::detail::generate_enum_field_encode(
+        out, field, model, "value.status");
     const auto code = out.str();
 
     REQUIRE(code.find("if (") == std::string::npos);

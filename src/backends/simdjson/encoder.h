@@ -14,7 +14,8 @@ void generate_encode_error_model(std::ostringstream& out);
 // Generate value encoding and error reoprting for one enum field.
 void generate_enum_field_encode(std::ostringstream& out,
                                 const metadata::FieldModel& field,
-                                const metadata::EnumModel& enum_model);
+                                const metadata::EnumModel& enum_model,
+                                std::string_view value_expression);
 
 // Generate validation and encoding for one value expression.
 void generate_value_encode(std::ostringstream& out,
