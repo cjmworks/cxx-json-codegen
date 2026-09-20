@@ -137,3 +137,17 @@ TEST_CASE("optional.enum", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("optional.enum_invalid", "[simdjson][encoder]") {
+    const OptionalEnumValues value{static_cast<OptionalStatus>(99)};
+    cjm::simdjson::EncodeError error;
+
+    const auto result = cjm::simdjson::to_json(value, error);
+
+    REQUIRE_FALSE(result.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::invalid_enum_value);
+    REQUIRE(error.path.size() == 1);
+    REQUIRE(error.path[0].kind == cjm::simdjson::EncodePathSegmentKind::field);
+    REQUIRE(error.path[0].field_name == "state");
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
