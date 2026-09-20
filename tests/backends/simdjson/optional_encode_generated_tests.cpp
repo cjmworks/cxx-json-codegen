@@ -151,3 +151,23 @@ TEST_CASE("optional.enum_invalid", "[simdjson][encoder]") {
     REQUIRE(error.path[0].field_name == "state");
     REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
 }
+
+TEST_CASE("optional.enum_recovers", "[simdjson][encoder]") {
+    OptionalEnumValues value{static_cast<OptionalStatus>(99)};
+    cjm::simdjson::EncodeError error;
+
+    const auto failed = cjm::simdjson::to_json(value, error);
+
+    REQUIRE_FALSE(failed.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::invalid_enum_value);
+    REQUIRE_FALSE(error.path.empty());
+
+    value.status = OptionalStatus::Active;
+    const auto result = cjm::simdjson::to_json(value, error);
+
+    REQUIRE(result.has_value());
+    REQUIRE(*result == R"({"state":"Active"})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
