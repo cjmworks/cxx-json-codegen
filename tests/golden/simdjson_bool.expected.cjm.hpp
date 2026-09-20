@@ -205,6 +205,11 @@ inline bool encode_object(
     const ::BoolValues& value,
     EncodeError& error) {
     builder.start_object();
+    bool first_field = true;
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("enabled");
     builder.append_colon();
     builder.append(value.enabled);

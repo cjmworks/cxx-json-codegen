@@ -309,3 +309,128 @@ from_json<::OptionalScalarValues>(
 }
 
 } // namespace cjm::simdjson
+
+namespace cjm::simdjson::detail {
+
+inline bool encode_object(
+    ::simdjson::builder::string_builder& builder,
+    const ::OptionalScalarValues& value,
+    EncodeError& error) {
+    builder.start_object();
+    bool first_field = true;
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("maybe_enabled");
+    builder.append_colon();
+    if ((value.maybe_enabled).has_value()) {
+        builder.append(*(value.maybe_enabled));
+    } else {
+        builder.append_null();
+    }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("maybe_count");
+    builder.append_colon();
+    if ((value.maybe_count).has_value()) {
+        builder.append(*(value.maybe_count));
+    } else {
+        builder.append_null();
+    }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("maybe_limit");
+    builder.append_colon();
+    if ((value.maybe_limit).has_value()) {
+        builder.append(*(value.maybe_limit));
+    } else {
+        builder.append_null();
+    }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("maybe_name");
+    builder.append_colon();
+    if ((value.maybe_name).has_value()) {
+        if (!::simdjson::validate_utf8(*(value.maybe_name))) {
+            error.code = EncodeErrorCode::invalid_utf8_string;
+            error.path = {{EncodePathSegmentKind::field, "maybe_name", 0}};
+            error.runtime_error = ::simdjson::UTF8_ERROR;
+            return false;
+        }
+        builder.escape_and_append_with_quotes(*(value.maybe_name));
+    } else {
+        builder.append_null();
+    }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("maybe_status");
+    builder.append_colon();
+    if ((value.maybe_status).has_value()) {
+        if (*(value.maybe_status) == ::Status::Active) {
+            builder.escape_and_append_with_quotes("Active");
+        }
+        else if (*(value.maybe_status) == ::Status::Disabled) {
+            builder.escape_and_append_with_quotes("Disabled");
+        }
+        else {
+            error.code = EncodeErrorCode::invalid_enum_value;
+            error.path = {{EncodePathSegmentKind::field, "maybe_status", 0}};
+            error.runtime_error = ::simdjson::SUCCESS;
+            return false;
+        }
+    } else {
+        builder.append_null();
+    }
+    builder.end_object();
+    return true;
+}
+
+} // namespace cjm::simdjson::detail
+
+namespace cjm::simdjson {
+
+template <>
+inline std::optional<std::string>
+to_json<::OptionalScalarValues>(
+    const ::OptionalScalarValues& value,
+    EncodeError& error) {
+    error = {};
+    try {
+        ::simdjson::builder::string_builder builder;
+        const bool model_valid =
+            detail::encode_object(builder, value, error);
+        std::string_view view;
+        const auto runtime_error = builder.view().get(view);
+        if (runtime_error != ::simdjson::SUCCESS) {
+            error.path.clear();
+            error.code = EncodeErrorCode::output_failure;
+            error.runtime_error = runtime_error;
+            return std::nullopt;
+        }
+        if (!model_valid) {
+            return std::nullopt;
+        }
+        return std::string(view);
+    } catch (const std::bad_alloc&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::allocation_failure;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    } catch (const std::length_error&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::size_limit_exceeded;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    }
+}
+
+} // namespace cjm::simdjson

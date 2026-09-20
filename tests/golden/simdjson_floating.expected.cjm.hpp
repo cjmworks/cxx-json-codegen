@@ -248,12 +248,17 @@ inline bool encode_object(
     const ::FloatingValues& value,
     EncodeError& error) {
     builder.start_object();
+    bool first_field = true;
     if (!std::isfinite(value.ratio)) {
         error.code = EncodeErrorCode::non_finite_number;
         error.path = {{EncodePathSegmentKind::field, "ratio", 0}};
         error.runtime_error = ::simdjson::SUCCESS;
         return false;
     }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("ratio");
     builder.append_colon();
     builder.append(value.ratio);
@@ -263,7 +268,10 @@ inline bool encode_object(
         error.runtime_error = ::simdjson::SUCCESS;
         return false;
     }
-    builder.append_comma();
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("amount");
     builder.append_colon();
     builder.append(value.amount);

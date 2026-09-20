@@ -207,12 +207,17 @@ inline bool encode_object(
     const ::SliceAddress& value,
     EncodeError& error) {
     builder.start_object();
+    bool first_field = true;
     if (!::simdjson::validate_utf8(value.city)) {
         error.code = EncodeErrorCode::invalid_utf8_string;
         error.path = {{EncodePathSegmentKind::field, "city", 0}};
         error.runtime_error = ::simdjson::UTF8_ERROR;
         return false;
     }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("city");
     builder.append_colon();
     builder.escape_and_append_with_quotes(value.city);

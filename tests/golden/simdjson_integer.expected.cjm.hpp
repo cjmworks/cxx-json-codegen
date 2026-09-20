@@ -286,14 +286,25 @@ inline bool encode_object(
     const ::IntegerValues& value,
     EncodeError& error) {
     builder.start_object();
+    bool first_field = true;
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("count");
     builder.append_colon();
     builder.append(value.count);
-    builder.append_comma();
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("limit");
     builder.append_colon();
     builder.append(value.limit);
-    builder.append_comma();
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("narrow");
     builder.append_colon();
     builder.append(value.narrow);

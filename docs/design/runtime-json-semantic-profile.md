@@ -243,10 +243,10 @@ profile.
 
 ### Experimental simdjson decode policy
 
-The current direct-field slice supports `float` and `double`. `long double`
-and floating-point values wrapped in optional, vector, array, or map fields
-remain generation-time unsupported capabilities. Direct-field encoding is
-described below.
+The current slice supports direct and optional `float` and `double` fields.
+`long double` (including optional wrapping) and floating-point values in vector,
+array, or map fields remain generation-time unsupported capabilities.
+Encoding is described below.
 
 Generated code first reads a temporary `double` using `get_double()`. A failed
 read reports `expected_number`, preserves the simdjson error code, and records
@@ -272,9 +272,10 @@ failed call leaves no stale code, runtime error, or path.
 ### Experimental simdjson encode policy
 
 Models whose participating fields are bool, supported integers, `float`,
-`double`, owned `std::string`, or enums with Metadata IR definitions now have
-generated encoders. This is a direct-field capability, not support for optionals, containers, or
-nested-object encoding. `long double` remains
+`double`, owned `std::string`, or enums with Metadata IR definitions, including
+optional fields wrapping these types, now have generated encoders. Containers,
+nested objects, and optionals wrapping those compositions remain incomplete.
+`long double` remains
 unsupported; the generator must not silently narrow it to `double`.
 
 Before writing each floating-point value, generated code checks
@@ -294,7 +295,7 @@ is sampled coverage of the current runtime/compiler environment, not proof
 for every floating-point value or cross-backend equivalence.
 
 Owned string values are checked with the official `simdjson::validate_utf8`
-before their field key or value is written, then emitted with
+before their string value is written, then emitted with
 `escape_and_append_with_quotes`. Explicit lengths preserve embedded NUL;
 the JSON output represents it as `\u0000`. Invalid or truncated UTF-8 reports
 `invalid_utf8_string`, runtime `UTF8_ERROR`, and the effective JSON field name.
@@ -313,8 +314,9 @@ JSON is returned. Runtime tests cover both named values of the test enum,
 an unmapped value, and success after failure. Generator tests cover renamed
 error paths, qualified-name lookup, the public generation entry point, and the
 empty-enum helper branch. The empty-enum test checks generated text only;
-it does not establish end-to-end empty-enum support. Optional enums, enum
-containers, and custom enum rename policies are outside this completed slice.
+it does not establish end-to-end empty-enum support. Optional enums are also
+covered by generated runtime tests; enum containers and custom enum rename
+policies are outside this completed slice.
 
 Each encode call creates a new builder and resets the caller's error object.
 Recovery tests reuse that error object after a non-finite-value, invalid-UTF-8,
@@ -395,6 +397,28 @@ present non-null field: decode T
 ```
 
 If decoding `T` fails, decoding the optional field fails.
+
+### Experimental simdjson optional scalar status
+
+As of 2026-09-20, generated encoding supports optional bool, supported signed
+and unsigned integers, float/double, owned strings, and mapped enums. A
+disengaged field is omitted with `omitempty` and emitted as `null` otherwise.
+Engaged zero, false, and empty strings are retained. Commas follow actually
+emitted fields; an all-omitted model produces `{}`. Ignored fields are not
+validated or emitted.
+
+Contained-value failures retain the effective JSON field path without an
+extra optional segment. Runtime tests cover invalid UTF-8, unmapped enums,
+non-finite floats, and success after failure. Optional floating round trips
+cover signed zero, finite extrema, minimum normal/subnormal values, and
+representative decimal rounding. Decode tests distinguish wrong types,
+target-float overflow after a successful double read, and runtime number
+errors; recovery clears the previous error and path.
+
+This completes the current optional scalar slice, not all `optional<T>`
+combinations. Optional nested objects, containers, and nested optionals still
+need capability and integration coverage as their underlying encode support
+is added. The broader MVP composition contract is unchanged.
 
 ---
 

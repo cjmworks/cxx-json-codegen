@@ -241,16 +241,24 @@ inline bool encode_object(
     const ::User& value,
     EncodeError& error) {
     builder.start_object();
+    bool first_field = true;
     if (!::simdjson::validate_utf8(value.name)) {
         error.code = EncodeErrorCode::invalid_utf8_string;
         error.path = {{EncodePathSegmentKind::field, "name", 0}};
         error.runtime_error = ::simdjson::UTF8_ERROR;
         return false;
     }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("name");
     builder.append_colon();
     builder.escape_and_append_with_quotes(value.name);
-    builder.append_comma();
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("age");
     builder.append_colon();
     builder.append(value.age);

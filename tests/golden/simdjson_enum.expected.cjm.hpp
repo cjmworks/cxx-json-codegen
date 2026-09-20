@@ -221,9 +221,14 @@ inline bool encode_object(
     const ::EnumValues& value,
     EncodeError& error) {
     builder.start_object();
+    bool first_field = true;
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
     builder.escape_and_append_with_quotes("status");
     builder.append_colon();
-   if (value.status == ::Status::Active) {
+    if (value.status == ::Status::Active) {
         builder.escape_and_append_with_quotes("Active");
     }
     else if (value.status == ::Status::Disabled) {
