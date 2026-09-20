@@ -609,6 +609,8 @@ TEST_CASE("optional.fields", "[simdjson][encoder]") {
         {"unsigned", FieldTypeKind::UnsignedInteger, "unsigned int", true},
         {"string", FieldTypeKind::String, "std::string", true},
         {"enum", FieldTypeKind::Enum, "Status", true},
+        {"float", FieldTypeKind::FloatingPoint, "float", true},
+        {"double", FieldTypeKind::FloatingPoint, "double", true},
     };
 
     for (const auto& item : cases) {
