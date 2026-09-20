@@ -96,3 +96,18 @@ TEST_CASE("optional.all_omitted", "[simdjson][encoder]") {
     REQUIRE(error.path.empty());
     REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
 }
+
+TEST_CASE("optional.ignored", "[simdjson][encoder]") {
+    OmittedOptionalValues value;
+    value.ignored = std::string{"\xC3\x28", 2};
+    value.count = 7;
+    cjm::simdjson::EncodeError error;
+
+    const auto result = cjm::simdjson::to_json(value, error);
+
+    REQUIRE(result.has_value());
+    REQUIRE(*result == R"({"count":7})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
