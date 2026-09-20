@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <cmath>
 #include <limits>
 #include <string_view>
 
@@ -247,6 +248,133 @@ TEST_CASE("optional.float_non_finite", "[simdjson][encoder]") {
             REQUIRE(error.path[0].kind ==
                     cjm::simdjson::EncodePathSegmentKind::field);
             REQUIRE(error.path[0].field_name == item.field);
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+        }
+    }
+}
+
+TEST_CASE("optional.float_boundaries", "[simdjson][encoder][decoder]") {
+    using F = std::numeric_limits<float>;
+    using D = std::numeric_limits<double>;
+
+    const struct {
+        const char* name;
+        float ratio;
+        double amount;
+    } cases[] = {
+        {"positive_zero", 0.0f, 0.0},
+        {"negative_zero", -0.0f, -0.0},
+        {"maximum", (F::max)(), (D::max)()},
+        {"lowest", F::lowest(), D::lowest()},
+        {"minimum_normal", (F::min)(), (D::min)()},
+        {"minimum_subnormal", F::denorm_min(), D::denorm_min()},
+        {"negative_subnormal", -F::denorm_min(), -D::denorm_min()},
+        {"rounded_decimal", 0.1f, 0.1},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            const OptionalFloatValues value{item.ratio, item.amount};
+            cjm::simdjson::EncodeError encode_error;
+            const auto json = cjm::simdjson::to_json(value, encode_error);
+            REQUIRE(json.has_value());
+            REQUIRE(encode_error.code == cjm::simdjson::EncodeErrorCode::none);
+            REQUIRE(encode_error.path.empty());
+            REQUIRE(encode_error.runtime_error == ::simdjson::SUCCESS);
+
+            cjm::simdjson::DecodeError decode_error;
+            const auto decoded =
+                cjm::simdjson::from_json<OptionalFloatValues>(*json, decode_error);
+            REQUIRE(decoded.has_value());
+            REQUIRE(decode_error.code == cjm::simdjson::DecodeErrorCode::none);
+            REQUIRE(decode_error.path.empty());
+            REQUIRE(decode_error.runtime_error == ::simdjson::SUCCESS);
+            // Presence checks also prove that engaged zero was not omitted.
+            REQUIRE(decoded->ratio.has_value());
+            REQUIRE(decoded->amount.has_value());
+            REQUIRE(*decoded->ratio == item.ratio);
+            REQUIRE(*decoded->amount == item.amount);
+            REQUIRE(std::signbit(*decoded->ratio) == std::signbit(item.ratio));
+            REQUIRE(std::signbit(*decoded->amount) == std::signbit(item.amount));
+        }
+    }
+}
+
+TEST_CASE("optional.float_encode_recovers", "[simdjson][encoder]") {
+    const struct {
+        const char* name;
+        OptionalFloatValues invalid;
+        const char* field;
+    } cases[] = {
+        {"float_nan", {std::numeric_limits<float>::quiet_NaN(), std::nullopt},
+         "ratio"},
+        {"double_inf", {1.5f, std::numeric_limits<double>::infinity()},
+         "amount"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::EncodeError error;
+            const auto failed = cjm::simdjson::to_json(item.invalid, error);
+            REQUIRE_FALSE(failed.has_value());
+            REQUIRE(error.code ==
+                    cjm::simdjson::EncodeErrorCode::non_finite_number);
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].kind ==
+                    cjm::simdjson::EncodePathSegmentKind::field);
+            REQUIRE(error.path[0].field_name == item.field);
+
+            const OptionalFloatValues valid{1.5f, -2.25};
+            const auto result = cjm::simdjson::to_json(valid, error);
+            REQUIRE(result.has_value());
+            REQUIRE(*result == R"({"ratio":1.5,"amount":-2.25})");
+            REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+            REQUIRE(error.path.empty());
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+        }
+    }
+}
+
+TEST_CASE("optional.float_decode_recovers", "[simdjson][decoder]") {
+    using Code = cjm::simdjson::DecodeErrorCode;
+    const struct {
+        const char* name;
+        std::string_view json;
+        Code code;
+        simdjson::error_code runtime_error;
+        const char* field;
+    } cases[] = {
+        {"wrong_type", R"({"ratio":"abc"})", Code::expected_number,
+         simdjson::INCORRECT_TYPE, "ratio"},
+        {"target_overflow", R"({"ratio":1e100})", Code::floating_point_overflow,
+         simdjson::SUCCESS, "ratio"},
+        {"number_error", R"({"ratio":1.5,"amount":1e400})", Code::expected_number,
+         simdjson::NUMBER_ERROR, "amount"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::DecodeError error;
+            const auto failed =
+                cjm::simdjson::from_json<OptionalFloatValues>(item.json, error);
+            REQUIRE_FALSE(failed.has_value());
+            REQUIRE(error.code == item.code);
+            REQUIRE(error.runtime_error == item.runtime_error);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].kind ==
+                    cjm::simdjson::DecodePathSegmentKind::field);
+            REQUIRE(error.path[0].field_name == item.field);
+
+            const auto result = cjm::simdjson::from_json<OptionalFloatValues>(
+                R"({"ratio":1.5,"amount":-2.25})", error);
+            REQUIRE(result.has_value());
+            REQUIRE(result->ratio.has_value());
+            REQUIRE(result->amount.has_value());
+            REQUIRE(*result->ratio == 1.5f);
+            REQUIRE(*result->amount == -2.25);
+            REQUIRE(error.code == Code::none);
+            REQUIRE(error.path.empty());
             REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
         }
     }
