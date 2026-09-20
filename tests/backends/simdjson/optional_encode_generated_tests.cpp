@@ -63,3 +63,23 @@ TEST_CASE("optional.invalid_utf8", "[simdjson][encoder]") {
     REQUIRE(error.path[0].kind == cjm::simdjson::EncodePathSegmentKind::field);
     REQUIRE(error.path[0].field_name == "name");
 }
+
+TEST_CASE("optional.recovers", "[simdjson][encoder]") {
+    OptionalEncodeValues value;
+    value.name = std::string{"\xC3\x28", 2};
+    cjm::simdjson::EncodeError error;
+
+    const auto failed = cjm::simdjson::to_json(value, error);
+    REQUIRE_FALSE(failed.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::invalid_utf8_string);
+    REQUIRE_FALSE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::UTF8_ERROR);
+
+    value.name = "Ada";
+    const auto result = cjm::simdjson::to_json(value, error);
+    REQUIRE(result.has_value());
+    REQUIRE(*result == R"({"name":"Ada","enabled":null})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
