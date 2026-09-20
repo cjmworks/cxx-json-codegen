@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <limits>
 #include <string_view>
 
 #include "tests/fixtures/simdjson_optional_encode.hpp"
@@ -215,4 +216,38 @@ TEST_CASE("optional.float_absent", "[simdjson][encoder][decoder]") {
     REQUIRE(decode_error.code == cjm::simdjson::DecodeErrorCode::none);
     REQUIRE(decode_error.path.empty());
     REQUIRE(decode_error.runtime_error == ::simdjson::SUCCESS);
+}
+
+TEST_CASE("optional.float_non_finite", "[simdjson][encoder]") {
+    using F = std::numeric_limits<float>;
+    using D = std::numeric_limits<double>;
+
+    const struct {
+        const char* name;
+        OptionalFloatValues value;
+        const char* field;
+    } cases[] = {
+        {"float_nan", {F::quiet_NaN(), std::nullopt}, "ratio"},
+        {"float_inf", {F::infinity(), std::nullopt}, "ratio"},
+        {"float_negative_inf", {-F::infinity(), std::nullopt}, "ratio"},
+        {"double_nan", {1.5f, D::quiet_NaN()}, "amount"},
+        {"double_inf", {1.5f, D::infinity()}, "amount"},
+        {"double_negative_inf", {1.5f, -D::infinity()}, "amount"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::EncodeError error;
+            const auto result = cjm::simdjson::to_json(item.value, error);
+
+            REQUIRE_FALSE(result.has_value());
+            REQUIRE(error.code ==
+                    cjm::simdjson::EncodeErrorCode::non_finite_number);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].kind ==
+                    cjm::simdjson::EncodePathSegmentKind::field);
+            REQUIRE(error.path[0].field_name == item.field);
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+        }
+    }
 }
