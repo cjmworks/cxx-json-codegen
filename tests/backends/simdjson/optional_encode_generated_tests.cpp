@@ -193,3 +193,26 @@ TEST_CASE("optional.float_round_trip", "[simdjson][encoder][decoder]") {
     REQUIRE(decode_error.path.empty());
     REQUIRE(decode_error.runtime_error == ::simdjson::SUCCESS);
 }
+
+TEST_CASE("optional.float_absent", "[simdjson][encoder][decoder]") {
+    const OptionalFloatValues value{};
+    cjm::simdjson::EncodeError encode_error;
+    const auto json = cjm::simdjson::to_json(value, encode_error);
+
+    REQUIRE(json.has_value());
+    REQUIRE(*json == R"({"amount":null})");
+    REQUIRE(encode_error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(encode_error.path.empty());
+    REQUIRE(encode_error.runtime_error == ::simdjson::SUCCESS);
+
+    cjm::simdjson::DecodeError decode_error;
+    const auto decoded =
+        cjm::simdjson::from_json<OptionalFloatValues>(*json, decode_error);
+
+    REQUIRE(decoded.has_value());
+    REQUIRE_FALSE(decoded->ratio.has_value());
+    REQUIRE_FALSE(decoded->amount.has_value());
+    REQUIRE(decode_error.code == cjm::simdjson::DecodeErrorCode::none);
+    REQUIRE(decode_error.path.empty());
+    REQUIRE(decode_error.runtime_error == ::simdjson::SUCCESS);
+}
