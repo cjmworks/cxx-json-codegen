@@ -111,3 +111,29 @@ TEST_CASE("optional.ignored", "[simdjson][encoder]") {
     REQUIRE(error.path.empty());
     REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
 }
+
+TEST_CASE("optional.enum", "[simdjson][encoder]") {
+    const struct {
+        const char* name;
+        std::optional<OptionalStatus> input;
+        std::string_view expected;
+    } cases[] = {
+        {"absent", std::nullopt, R"({"state":null})"},
+        {"active", OptionalStatus::Active, R"({"state":"Active"})"},
+        {"disabled", OptionalStatus::Disabled, R"({"state":"Disabled"})"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            const OptionalEnumValues value{item.input};
+            cjm::simdjson::EncodeError error;
+            const auto result = cjm::simdjson::to_json(value, error);
+
+            REQUIRE(result.has_value());
+            REQUIRE(*result == item.expected);
+            REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+            REQUIRE(error.path.empty());
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+        }
+    }
+}

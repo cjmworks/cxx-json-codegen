@@ -14,3 +14,12 @@ struct OmittedOptionalValues {
     std::optional<int> count;           // json:"count,omitempty"
     std::optional<std::string> name;    // json:"name,omitempty"
 };
+
+enum class OptionalStatus {
+    Active,
+    Disabled,
+};
+
+struct OptionalEnumValues {
+    std::optional<OptionalStatus> status; // json:"state"
+};
