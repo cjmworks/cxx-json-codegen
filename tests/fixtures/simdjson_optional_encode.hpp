@@ -8,3 +8,8 @@ struct OptionalEncodeValues {
     std::optional<std::string> name; // json:"name,omitempty"
     std::optional<bool> enabled;
 };
+
+struct OmittedOptionalValues {
+    std::optional<int> count;        // json:"count,omitempty"
+    std::optional<std::string> name; // json:"name,omitempty"
+};
