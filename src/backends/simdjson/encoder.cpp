@@ -141,7 +141,16 @@ void generate_value_encode(std::ostringstream& out,
             << indent << "}\n";
         return;
     }
-
+    case metadata::FieldTypeKind::UserDefined:
+        out << indent << "if (!encode_object(builder, " << value_expression
+            << ", error)) {\n"
+            << indent << "    error.path.insert(error.path.begin(),\n"
+            << indent << "        EncodePathSegment{"
+            << "EncodePathSegmentKind::field, \"" << field.json.name
+            << "\", 0});\n"
+            << indent << "    return false;\n"
+            << indent << "}\n";
+        return;
     default:
         throw std::logic_error("generate_value_encode: unimplemented type");
     }
