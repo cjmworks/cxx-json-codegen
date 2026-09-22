@@ -47,41 +47,15 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
             if (field.json.ignored) {
                 continue;
             }
-            const auto kind = field.type.kind;
-            const auto& type_name = field.type.qualified_name.empty()
-                                        ? field.type.spelling
-                                        : field.type.qualified_name;
-            const bool supported_float =
-                kind == metadata::FieldTypeKind::FloatingPoint &&
-                (type_name == "float" || type_name == "double");
 
-            bool supported_optional = false;
-            if (kind == metadata::FieldTypeKind::Optional &&
-                field.type.arguments.size() == 1) {
-                const auto& inner = field.type.arguments[0];
-                const auto inner_kind = inner.kind;
-                const auto& inner_name = inner.qualified_name.empty()
-                                             ? inner.spelling
-                                             : inner.qualified_name;
-                const bool supported_optional_inner_float =
-                    inner_kind == metadata::FieldTypeKind::FloatingPoint &&
-                    (inner_name == "float" || inner_name == "double");
-
-                supported_optional =
-                    inner_kind == metadata::FieldTypeKind::Bool ||
-                    inner_kind == metadata::FieldTypeKind::SignedInteger ||
-                    inner_kind == metadata::FieldTypeKind::UnsignedInteger ||
-                    inner_kind == metadata::FieldTypeKind::String ||
-                    inner_kind == metadata::FieldTypeKind::Enum ||
-                    supported_optional_inner_float;
-            }
-
-            if (kind != metadata::FieldTypeKind::Bool &&
-                kind != metadata::FieldTypeKind::SignedInteger &&
-                kind != metadata::FieldTypeKind::UnsignedInteger &&
-                kind != metadata::FieldTypeKind::String &&
-                kind != metadata::FieldTypeKind::Enum && !supported_float &&
-                !supported_optional) {
+            const bool supported_scalar =
+                detail::is_supported_scalar_encode_type(field.type);
+            const bool supported_optional =
+                field.type.kind == metadata::FieldTypeKind::Optional &&
+                field.type.arguments.size() == 1 &&
+                detail::is_supported_scalar_encode_type(
+                    field.type.arguments[0]);
+            if (!supported_scalar && !supported_optional) {
                 scalar_only = false;
                 break;
             }
