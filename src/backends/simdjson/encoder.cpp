@@ -6,6 +6,24 @@
 
 namespace cjm::generator::simdjson::detail {
 
+bool is_supported_scalar_encode_type(const metadata::FieldType& type) {
+    switch (type.kind) {
+    case metadata::FieldTypeKind::Bool:
+    case metadata::FieldTypeKind::SignedInteger:
+    case metadata::FieldTypeKind::UnsignedInteger:
+    case metadata::FieldTypeKind::String:
+    case metadata::FieldTypeKind::Enum:
+        return true;
+    case metadata::FieldTypeKind::FloatingPoint: {
+        const auto& name =
+            type.qualified_name.empty() ? type.spelling : type.qualified_name;
+        return name == "float" || name == "double";
+    }
+    default:
+        return false;
+    }
+} // namespace cjm::generator::simdjson::detail
+
 // Generate the experimental encode error and public API declarations
 void generate_encode_error_model(std::ostringstream& out) {
     out << "#ifndef CJM_SIMDJSON_ENCODE_RUNTIME_TYPES_DEFINED\n"

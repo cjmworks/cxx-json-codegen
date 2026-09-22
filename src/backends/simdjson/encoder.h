@@ -8,6 +8,9 @@
 
 namespace cjm::generator::simdjson::detail {
 
+// Check whether a scalar type has a supported encode mapping.
+bool is_supported_scalar_encode_type(const metadata::FieldType& type);
+
 // Generate the experimental encode error and public API declarations.
 void generate_encode_error_model(std::ostringstream& out);
 

@@ -844,7 +844,7 @@ TEST_CASE("object.nested", "[simdjson][encoder]") {
 
     TypeModel type;
     type.name = "User";
-    type.qualified_name = "app:User";
+    type.qualified_name = "app::User";
     type.fields = {field};
 
     std::ostringstream out;
@@ -854,5 +854,35 @@ TEST_CASE("object.nested", "[simdjson][encoder]") {
 
     REQUIRE(code.find("if (!encode_object(builder, value.address, error))") !=
             std::string::npos);
-    REQUIRE(code.find("builder.append(value.express);") == std::string::npos);
+    REQUIRE(code.find("builder.append(value.address);") == std::string::npos);
+}
+
+TEST_CASE("capacity.scalar", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+    const struct {
+        const char* name;
+        FieldTypeKind kind;
+        bool expected;
+    } cases[] = {
+        {"bool", FieldTypeKind::Bool, true},
+        {"int", FieldTypeKind::SignedInteger, true},
+        {"unsigned", FieldTypeKind::UnsignedInteger, true},
+        {"string", FieldTypeKind::String, true},
+        {"float", FieldTypeKind::FloatingPoint, true},
+        {"double", FieldTypeKind::FloatingPoint, true},
+        {"long double", FieldTypeKind::FloatingPoint, false},
+        {"Address", FieldTypeKind::UserDefined, false},
+        {"optional", FieldTypeKind::Optional, false},
+        {"vector", FieldTypeKind::Vector, false},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            FieldType type;
+            type.kind = item.kind;
+            type.spelling = item.name;
+            REQUIRE(cjm::generator::simdjson::detail::
+                        is_supported_scalar_encode_type(type) == item.expected);
+        }
+    }
 }
