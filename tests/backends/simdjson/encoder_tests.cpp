@@ -805,3 +805,30 @@ TEST_CASE("value.optional_float", "[simdjson][encoder]") {
         FAIL(cjm::test::format_golden_mismatch(expected, actual));
     }
 }
+
+TEST_CASE("value.object", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "address";
+    field.json.name = "home";
+    field.type.kind = FieldTypeKind::UserDefined;
+    field.type.qualified_name = "app::Address";
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_value_encode(
+        out, field, field.type, "value.address", {}, 1);
+
+    const std::string expected =
+        "    if (!encode_object(builder, value.address, error)) {\n"
+        "        error.path.insert(error.path.begin(),\n"
+        "            EncodePathSegment{EncodePathSegmentKind::field, "
+        "\"home\", 0});\n"
+        "        return false;\n"
+        "    }\n";
+
+    const auto actual = out.str();
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
+    }
+}
