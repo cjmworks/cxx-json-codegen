@@ -832,3 +832,27 @@ TEST_CASE("value.object", "[simdjson][encoder]") {
         FAIL(cjm::test::format_golden_mismatch(expected, actual));
     }
 }
+
+TEST_CASE("object.nested", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "address";
+    field.json.name = "home";
+    field.type.kind = FieldTypeKind::UserDefined;
+    field.type.qualified_name = "app::Address";
+
+    TypeModel type;
+    type.name = "User";
+    type.qualified_name = "app:User";
+    type.fields = {field};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type, {});
+    const auto code = out.str();
+
+    REQUIRE(code.find("if (!encode_object(builder, value.address, error))") !=
+            std::string::npos);
+    REQUIRE(code.find("builder.append(value.express);") == std::string::npos);
+}

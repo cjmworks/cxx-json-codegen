@@ -217,7 +217,8 @@ void generate_scalar_object_encode_function(
                    field.json.name + "\");\n"
             << "    builder.append_colon();\n";
 
-        if (field.type.kind == metadata::FieldTypeKind::Optional) {
+        if (field.type.kind == metadata::FieldTypeKind::Optional ||
+            field.type.kind == metadata::FieldTypeKind::UserDefined) {
             generate_value_encode(out, field, field.type, "value." + field.name,
                                   enums, omit_disengaged ? 2 : 1);
         } else if (field.type.kind == metadata::FieldTypeKind::String) {
