@@ -857,7 +857,7 @@ TEST_CASE("object.nested", "[simdjson][encoder]") {
     REQUIRE(code.find("builder.append(value.address);") == std::string::npos);
 }
 
-TEST_CASE("capacity.scalar", "[simdjson][encoder]") {
+TEST_CASE("capability.scalar", "[simdjson][encoder]") {
     using namespace cjm::metadata;
     const struct {
         const char* name;
@@ -883,6 +883,30 @@ TEST_CASE("capacity.scalar", "[simdjson][encoder]") {
             type.spelling = item.name;
             REQUIRE(cjm::generator::simdjson::detail::
                         is_supported_scalar_encode_type(type) == item.expected);
+        }
+    }
+}
+
+TEST_CASE("capability.object", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+    FieldType type;
+    type.kind = FieldTypeKind::UserDefined;
+    type.qualified_name = "app::Address";
+
+    const struct {
+        const char* name;
+        std::set<std::string> encoded_models;
+        bool expected;
+    } cases[] = {
+        {"missing", {}, false},
+        {"available", {"app::Address"}, true},
+        {"different_namespace", {"other::Address"}, false},
+    };
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            REQUIRE(cjm::generator::simdjson::detail::
+                        is_supported_value_encode_type(
+                            type, item.encoded_models) == item.expected);
         }
     }
 }

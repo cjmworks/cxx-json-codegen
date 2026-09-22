@@ -24,6 +24,24 @@ bool is_supported_scalar_encode_type(const metadata::FieldType& type) {
     }
 } // namespace cjm::generator::simdjson::detail
 
+bool is_supported_value_encode_type(
+    const metadata::FieldType& type,
+    const std::set<std::string>& encoded_models) {
+    if (is_supported_scalar_encode_type(type)) {
+        return true;
+    }
+    if (type.kind == metadata::FieldTypeKind::Optional) {
+        return type.arguments.size() == 1 &&
+               is_supported_scalar_encode_type(type.arguments[0]);
+    }
+    if (type.kind == metadata::FieldTypeKind::UserDefined) {
+        const auto& name =
+            type.qualified_name.empty() ? type.spelling : type.qualified_name;
+        return encoded_models.count(name) != 0;
+    }
+    return false;
+}
+
 // Generate the experimental encode error and public API declarations
 void generate_encode_error_model(std::ostringstream& out) {
     out << "#ifndef CJM_SIMDJSON_ENCODE_RUNTIME_TYPES_DEFINED\n"

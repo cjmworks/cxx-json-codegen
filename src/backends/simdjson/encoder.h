@@ -5,11 +5,18 @@
 #include <cstddef>
 #include <iosfwd>
 #include <string_view>
+#include <set>
+#include <string>
 
 namespace cjm::generator::simdjson::detail {
 
 // Check whether a scalar type has a supported encode mapping.
 bool is_supported_scalar_encode_type(const metadata::FieldType& type);
+
+// Check whether a value can use the available encode mapping.
+bool is_supported_value_encode_type(
+    const metadata::FieldType& type,
+    const std::set<std::string>& encoded_models);
 
 // Generate the experimental encode error and public API declarations.
 void generate_encode_error_model(std::ostringstream& out);
