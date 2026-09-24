@@ -122,6 +122,11 @@ if (CJM_ENABLE_SIMDJSON)
   target_link_libraries(cjm_simdjson_enum_encode_generated_tests PRIVATE simdjson::simdjson Catch2::Catch2WithMain)
   catch_discover_tests(cjm_simdjson_enum_encode_generated_tests TEST_PREFIX cjm_simdjson_enum_encode_generated_tests.)
 
+  cjm_add_simdjson_test(cjm_simdjson_nested_encode_generated_tests
+    SOURCE backends/simdjson/nested_encode_generated_tests.cpp
+    MODEL fixtures/simdjson_nested_encode.hpp
+  )
+
   cjm_add_simdjson_test(cjm_simdjson_optional_encode_generated_tests SOURCE backends/simdjson/optional_encode_generated_tests.cpp MODEL fixtures/simdjson_optional_encode.hpp)
 
   add_executable(cjm_simdjson_generator_tests
