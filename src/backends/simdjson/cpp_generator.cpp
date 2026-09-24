@@ -37,35 +37,33 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
     header << "\n";
     detail::generate_encode_error_model(header);
 
+    std::set<std::string> encoded_models;
     for (const auto& type : project.types) {
         header << "\n";
         detail::generate_object_decode_function(header, type, project.enums);
         header << "\n";
         detail::generate_root_decode_function(header, type);
-        bool scalar_only = true;
+        bool can_encode = true;
         for (const auto& field : type.fields) {
             if (field.json.ignored) {
                 continue;
             }
 
-            const bool supported_scalar =
-                detail::is_supported_scalar_encode_type(field.type);
-            const bool supported_optional =
-                field.type.kind == metadata::FieldTypeKind::Optional &&
-                field.type.arguments.size() == 1 &&
-                detail::is_supported_scalar_encode_type(
-                    field.type.arguments[0]);
-            if (!supported_scalar && !supported_optional) {
-                scalar_only = false;
+            if (!detail::is_supported_value_encode_type(field.type,
+                                                        encoded_models)) {
+                can_encode = false;
                 break;
             }
         }
-        if (scalar_only) {
+        if (can_encode) {
             header << "\n";
             detail::generate_scalar_object_encode_function(header, type,
                                                            project.enums);
             header << "\n";
             detail::generate_root_encode_function(header, type);
+
+            encoded_models.insert(
+                type.qualified_name.empty() ? type.name : type.qualified_name);
         }
     }
     return GenerationResult{true, header.str(), {}};
