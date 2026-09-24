@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 
 namespace app {
@@ -9,6 +10,14 @@ struct Address {
 
 struct User {
     Address address; // json:"home"
+};
+
+struct OmittedAddress {
+    std::optional<std::string> city; // json:"city,omitempty"
+};
+
+struct UserWithOmittedAddress {
+    OmittedAddress address; // json:"home"
 };
 
 } // namespace app

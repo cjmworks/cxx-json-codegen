@@ -60,3 +60,16 @@ TEST_CASE("object.recovers", "[simdjson][encoder]") {
     REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
     REQUIRE(error.path.empty());
 }
+
+TEST_CASE("object.empty_child", "[simdjson][encoder]") {
+    const app::UserWithOmittedAddress value{};
+    cjm::simdjson::EncodeError error;
+
+    const auto result = cjm::simdjson::to_json(value, error);
+
+    REQUIRE(result.has_value());
+    REQUIRE(*result == R"({"home":{}})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
