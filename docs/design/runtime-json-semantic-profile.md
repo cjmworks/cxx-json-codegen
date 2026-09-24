@@ -273,8 +273,10 @@ failed call leaves no stale code, runtime error, or path.
 
 Models whose participating fields are bool, supported integers, `float`,
 `double`, owned `std::string`, or enums with Metadata IR definitions, including
-optional fields wrapping these types, now have generated encoders. Containers,
-nested objects, and optionals wrapping those compositions remain incomplete.
+optional fields wrapping these types, now have generated encoders. Required
+nested generated objects are also supported when their participating fields
+are encodable. Containers, optional objects, and nested optionals remain
+incomplete.
 `long double` remains
 unsupported; the generator must not silently narrow it to `double`.
 
@@ -323,6 +325,31 @@ Recovery tests reuse that error object after a non-finite-value, invalid-UTF-8,
 or unmapped-enum failure, then verify that a valid input produces complete output with no stale error
 or path. Recovery means independence of successive calls, not resuming a
 partially written document or repairing the invalid input.
+
+### Experimental simdjson nested object status
+
+As of 2026-09-23, required nested objects append directly to the root's official
+builder through generated `encode_object` overloads. They do not return
+intermediate JSON strings. Semantic Analysis supplies dependency-ordered models;
+the generator records successfully emitted encoders and enables a parent only
+when each participating field has a supported mapping. An unsupported child
+prevents parent encoder emission without removing supported decoder output.
+Complete unsupported-encode diagnostics remain tracked in #226.
+
+Child data errors retain their code and runtime error. Each parent prepends
+its effective JSON field name exactly once; tests verify `home → city` and
+`owner → home → city`. The root returns no partial output, and a subsequent
+successful call clears the previous error and path.
+
+Generated C++17 runtime tests cover two- and three-level round trips, sibling
+field separators, nested invalid UTF-8, and recovery. An all-omitted child
+still emits an object, for example `{"home":{}}`. This empty-child test uses
+a model with an omitted optional scalar, not a fieldless C++ struct: the
+current frontend omits fieldless models from its generated model set.
+
+Required-object support does not imply optional-object or nested-optional
+support (#224), container support (#213), recursive-model support, or complete
+resource-failure conformance (#227/#214). No performance claim is made.
 
 ## Strings
 
