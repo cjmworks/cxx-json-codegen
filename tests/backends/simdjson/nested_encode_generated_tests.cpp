@@ -39,3 +39,24 @@ TEST_CASE("object.error_path", "[simdjson][encoder]") {
     REQUIRE(error.path[1].kind == cjm::simdjson::EncodePathSegmentKind::field);
     REQUIRE(error.path[1].field_name == "city");
 }
+
+TEST_CASE("object.recovers", "[simdjson][encoder]") {
+    app::User value;
+    value.address.city = std::string{"\xC3\x28", 2};
+    cjm::simdjson::EncodeError error;
+
+    const auto failed = cjm::simdjson::to_json(value, error);
+    REQUIRE_FALSE(failed.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::invalid_utf8_string);
+    REQUIRE(error.runtime_error == ::simdjson::UTF8_ERROR);
+    REQUIRE(error.path.size() == 2);
+
+    value.address.city = "Paris";
+    const auto result = cjm::simdjson::to_json(value, error);
+
+    REQUIRE(result.has_value());
+    REQUIRE(*result == R"({"home":{"city":"Paris"}})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+    REQUIRE(error.path.empty());
+}
