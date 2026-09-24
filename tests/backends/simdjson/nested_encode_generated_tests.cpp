@@ -1,5 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <string_view>
+
 #include "tests/fixtures/simdjson_nested_encode.hpp"
 #include "cjm/simdjson/simdjson_nested_encode.cjm.hpp"
 
@@ -20,6 +22,7 @@ TEST_CASE("object.round_trip", "[simdjson][encoder][decoder]") {
     REQUIRE(decoded.has_value());
     REQUIRE(decoded->address.city == value.address.city);
     REQUIRE(decode_error.code == cjm::simdjson::DecodeErrorCode::none);
+    REQUIRE(decode_error.path.empty());
     REQUIRE(decode_error.runtime_error == ::simdjson::SUCCESS);
 }
 
@@ -72,4 +75,47 @@ TEST_CASE("object.empty_child", "[simdjson][encoder]") {
     REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
     REQUIRE(error.path.empty());
     REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
+
+TEST_CASE("object.deep_round_trip", "[simdjson][encoder][decoder]") {
+    const app::Profile value{7, {{"Paris"}}, true};
+    cjm::simdjson::EncodeError encode_error;
+
+    const auto json = cjm::simdjson::to_json(value, encode_error);
+    REQUIRE(json.has_value());
+    REQUIRE(*json ==
+            R"({"id":7,"owner":{"home":{"city":"Paris"}},"enabled":true})");
+    REQUIRE(encode_error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(encode_error.path.empty());
+    REQUIRE(encode_error.runtime_error == ::simdjson::SUCCESS);
+
+    cjm::simdjson::DecodeError decode_error;
+    const auto decoded =
+        cjm::simdjson::from_json<app::Profile>(*json, decode_error);
+    REQUIRE(decoded.has_value());
+    REQUIRE(decoded->id == value.id);
+    REQUIRE(decoded->user.address.city == value.user.address.city);
+    REQUIRE(decoded->enabled == value.enabled);
+    REQUIRE(decode_error.code == cjm::simdjson::DecodeErrorCode::none);
+    REQUIRE(decode_error.path.empty());
+    REQUIRE(decode_error.runtime_error == ::simdjson::SUCCESS);
+}
+
+TEST_CASE("object.deep_error_path", "[simdjson][encoder]") {
+    app::Profile value{7, {{std::string{"\xC3\x28", 2}}}, true};
+    cjm::simdjson::EncodeError error;
+
+    const auto result = cjm::simdjson::to_json(value, error);
+
+    REQUIRE_FALSE(result.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::invalid_utf8_string);
+    REQUIRE(error.runtime_error == ::simdjson::UTF8_ERROR);
+    REQUIRE(error.path.size() == 3);
+    const std::string_view expected[] = {"owner", "home", "city"};
+    for (std::size_t i = 0; i < error.path.size(); ++i) {
+        CAPTURE(i);
+        REQUIRE(error.path[i].kind ==
+                cjm::simdjson::EncodePathSegmentKind::field);
+        REQUIRE(error.path[i].field_name == expected[i]);
+    }
 }

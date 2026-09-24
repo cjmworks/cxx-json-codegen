@@ -12,6 +12,12 @@ struct User {
     Address address; // json:"home"
 };
 
+struct Profile {
+    int id;
+    User user; // json:"owner"
+    bool enabled;
+};
+
 struct OmittedAddress {
     std::optional<std::string> city; // json:"city,omitempty"
 };

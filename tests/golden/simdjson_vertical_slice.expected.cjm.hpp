@@ -457,3 +457,98 @@ from_json<::SliceUser>(
 }
 
 } // namespace cjm::simdjson
+
+namespace cjm::simdjson::detail {
+
+inline bool encode_object(
+    ::simdjson::builder::string_builder& builder,
+    const ::SliceUser& value,
+    EncodeError& error) {
+    builder.start_object();
+    bool first_field = true;
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("id");
+    builder.append_colon();
+    builder.append(value.id);
+    if (!::simdjson::validate_utf8(value.name)) {
+        error.code = EncodeErrorCode::invalid_utf8_string;
+        error.path = {{EncodePathSegmentKind::field, "name", 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("name");
+    builder.append_colon();
+    builder.escape_and_append_with_quotes(value.name);
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("maybe_count");
+    builder.append_colon();
+    if ((value.maybe_count).has_value()) {
+        builder.append(*(value.maybe_count));
+    } else {
+        builder.append_null();
+    }
+    if (!first_field) {
+        builder.append_comma();
+    }
+    first_field = false;
+    builder.escape_and_append_with_quotes("address");
+    builder.append_colon();
+    if (!encode_object(builder, value.address, error)) {
+        error.path.insert(error.path.begin(),
+            EncodePathSegment{EncodePathSegmentKind::field, "address", 0});
+        return false;
+    }
+    builder.end_object();
+    return true;
+}
+
+} // namespace cjm::simdjson::detail
+
+namespace cjm::simdjson {
+
+template <>
+inline std::optional<std::string>
+to_json<::SliceUser>(
+    const ::SliceUser& value,
+    EncodeError& error) {
+    error = {};
+    try {
+        ::simdjson::builder::string_builder builder;
+        const bool model_valid =
+            detail::encode_object(builder, value, error);
+        std::string_view view;
+        const auto runtime_error = builder.view().get(view);
+        if (runtime_error != ::simdjson::SUCCESS) {
+            error.path.clear();
+            error.code = EncodeErrorCode::output_failure;
+            error.runtime_error = runtime_error;
+            return std::nullopt;
+        }
+        if (!model_valid) {
+            return std::nullopt;
+        }
+        return std::string(view);
+    } catch (const std::bad_alloc&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::allocation_failure;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    } catch (const std::length_error&) {
+        error.path.clear();
+        error.code = EncodeErrorCode::size_limit_exceeded;
+        error.runtime_error = ::simdjson::SUCCESS;
+        return std::nullopt;
+    }
+}
+
+} // namespace cjm::simdjson
