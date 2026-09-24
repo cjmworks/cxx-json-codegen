@@ -910,3 +910,63 @@ TEST_CASE("capability.object", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("object.capability", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    const struct {
+        const char* name;
+        bool container;
+        bool expected;
+    } cases[] = {
+        {"scalar_child", false, true},
+        {"unsupported_child", true, false},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            FieldModel city;
+            city.name = "city";
+            city.json.name = "city";
+            city.type =
+                FieldType{FieldTypeKind::String, "std::string", "std::string"};
+
+            if (item.container) {
+                const auto element = city.type;
+                city.type.kind = FieldTypeKind::Vector;
+                city.type.spelling = "std::vector<std::string>";
+                city.type.qualified_name = "std::vector";
+                city.type.arguments = {element};
+            }
+
+            TypeModel address;
+            address.name = "Address";
+            address.qualified_name = "app::Address";
+            address.fields = {city};
+
+            FieldModel home;
+            home.name = "address";
+            home.json.name = "home";
+            home.type = FieldType{FieldTypeKind::UserDefined, "app::Address",
+                                  "app::Address"};
+
+            TypeModel user;
+            user.name = "User";
+            user.qualified_name = "app::User";
+            user.fields = {home};
+
+            ProjectModel project;
+            project.types = {address, user};
+            const auto result =
+                cjm::generator::simdjson::generate_header(project);
+            INFO(result.error);
+            REQUIRE(result.success);
+            REQUIRE((result.header.find("to_json<::app::Address>") !=
+                     std::string::npos) == item.expected);
+            REQUIRE((result.header.find("to_json<::app::User>") !=
+                     std::string::npos) == item.expected);
+            REQUIRE(result.header.find("from_json<::app::User>") !=
+                    std::string::npos);
+        }
+    }
+}
