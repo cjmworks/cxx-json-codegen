@@ -147,3 +147,34 @@ TEST_CASE("optional.object_decode", "[simdjson][decoder]") {
         }
     }
 }
+
+TEST_CASE("optional.object_encode", "[simdjson][encoder]") {
+    const app::OmittedAddress empty{};
+    app::OmittedAddress populated;
+    populated.city = "Paris";
+
+    const struct {
+        const char* name;
+        app::OptionalObjectValues value;
+        std::string_view expected;
+    } cases[] = {
+        {"absent", {}, R"({"nullable":null})"},
+        {"present",
+         {populated, populated},
+         R"({"omitted":{"city":"Paris"},"nullable":{"city":"Paris"}})"},
+        {"empty_objects", {empty, empty}, R"({"omitted":{},"nullable":{}})"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::EncodeError error;
+            const auto result = cjm::simdjson::to_json(item.value, error);
+
+            REQUIRE(result.has_value());
+            REQUIRE(*result == item.expected);
+            REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+            REQUIRE(error.path.empty());
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+        }
+    }
+}

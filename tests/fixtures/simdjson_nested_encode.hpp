@@ -30,4 +30,9 @@ struct OptionalUser {
     std::optional<Address> address; // json:"home"
 };
 
+struct OptionalObjectValues {
+    std::optional<OmittedAddress> omitted; // json:"omitted,omitempty"
+    std::optional<OmittedAddress> nullable;
+};
+
 } // namespace app
