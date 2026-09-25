@@ -154,10 +154,11 @@ bool is_supported_optional_field(
                                                         : inner.qualified_name;
         return name == "float" || name == "double";
     }
+    case metadata::FieldTypeKind::UserDefined:
+        return is_supported_user_defined_field(type.arguments[0]);
     case metadata::FieldTypeKind::Array:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
-    case metadata::FieldTypeKind::UserDefined:
         return false;
     }
     return false;
@@ -1159,6 +1160,10 @@ void generate_optional_field_decode(
         generate_vector_scalar_value_decode(out, field, inner_type, enums,
                                             "field.value()", target_name, 3,
                                             GeneratedValuePath{});
+    } else if (inner_type.kind == metadata::FieldTypeKind::UserDefined) {
+        generate_user_defined_value_decode(
+            out, field, "field.value()", target_name, 3, GeneratedValuePath{});
+
     } else {
         generate_scalar_value_decode(out, field, inner_type, enums,
                                      "field.value()", target_name, 3,
