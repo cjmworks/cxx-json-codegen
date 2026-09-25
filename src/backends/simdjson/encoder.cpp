@@ -32,7 +32,9 @@ bool is_supported_value_encode_type(
     }
     if (type.kind == metadata::FieldTypeKind::Optional) {
         return type.arguments.size() == 1 &&
-               is_supported_scalar_encode_type(type.arguments[0]);
+               type.arguments[0].kind != metadata::FieldTypeKind::Optional &&
+               is_supported_value_encode_type(type.arguments[0],
+                                              encoded_models);
     }
     if (type.kind == metadata::FieldTypeKind::UserDefined) {
         const auto& name =

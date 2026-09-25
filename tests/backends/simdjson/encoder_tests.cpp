@@ -970,3 +970,26 @@ TEST_CASE("object.capability", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("capability.optional_object", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldType object;
+    object.kind = FieldTypeKind::UserDefined;
+    object.qualified_name = "app::Address";
+
+    FieldType optional;
+    optional.kind = FieldTypeKind::Optional;
+    optional.arguments = {object};
+
+    const std::set<std::string> available{"app::Address"};
+    using cjm::generator::simdjson::detail::is_supported_value_encode_type;
+
+    REQUIRE_FALSE(is_supported_value_encode_type(optional, {}));
+    REQUIRE(is_supported_value_encode_type(optional, available));
+
+    FieldType nested;
+    nested.kind = FieldTypeKind::Optional;
+    nested.arguments = {optional};
+    REQUIRE_FALSE(is_supported_value_encode_type(nested, available));
+}
