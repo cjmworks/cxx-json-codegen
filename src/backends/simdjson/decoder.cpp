@@ -243,7 +243,7 @@ std::string generated_type_name(const metadata::TypeModel& type) {
 }
 
 // Return the globally qualified C++ name of one enum field type.
-std::string generated_enum_type_name(const metadata::FieldType& type) {
+std::string globally_qualified_type_name(const metadata::FieldType& type) {
     const auto& name =
         type.qualified_name.empty() ? type.spelling : type.qualified_name;
     if (name.rfind("::", 0) == 0) {
@@ -260,7 +260,8 @@ std::string optional_inner_type_name(const metadata::FieldType& inner_type) {
     case metadata::FieldTypeKind::String:
         return "std::string";
     case metadata::FieldTypeKind::Enum:
-        return generated_enum_type_name(inner_type);
+    case metadata::FieldTypeKind::UserDefined:
+        return globally_qualified_type_name(inner_type);
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
         return metadata_type_name(inner_type);
@@ -269,7 +270,6 @@ std::string optional_inner_type_name(const metadata::FieldType& inner_type) {
     case metadata::FieldTypeKind::Vector:
     case metadata::FieldTypeKind::Map:
     case metadata::FieldTypeKind::Optional:
-    case metadata::FieldTypeKind::UserDefined:
         return metadata_type_name(inner_type);
     }
     return metadata_type_name(inner_type);
@@ -593,7 +593,7 @@ void generate_enum_value_decode(std::ostringstream& out,
                                 const GeneratedValuePath& path) {
     const std::string decoded_name = "decoded_" + field.name + "_view";
     const std::string matched_name = "decoded_" + field.name + "_matches";
-    const std::string enum_type_name = generated_enum_type_name(type);
+    const std::string enum_type_name = globally_qualified_type_name(type);
 
     write_line(out, indent_level, "std::string_view " + decoded_name + ";");
     write_line(out, indent_level,
@@ -694,7 +694,7 @@ std::string scalar_value_type_name(const metadata::FieldType& type) {
     case metadata::FieldTypeKind::String:
         return "std::string";
     case metadata::FieldTypeKind::Enum:
-        return generated_enum_type_name(type);
+        return globally_qualified_type_name(type);
     case metadata::FieldTypeKind::SignedInteger:
     case metadata::FieldTypeKind::UnsignedInteger:
         return metadata_type_name(type);

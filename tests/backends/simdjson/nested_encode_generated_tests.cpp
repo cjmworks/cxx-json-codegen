@@ -119,3 +119,31 @@ TEST_CASE("object.deep_error_path", "[simdjson][encoder]") {
         REQUIRE(error.path[i].field_name == expected[i]);
     }
 }
+
+TEST_CASE("optional.object_decode", "[simdjson][decoder]") {
+    const struct {
+        const char* name;
+        std::string_view json;
+        bool present;
+    } cases[]{
+        {"missing", R"({})", false},
+        {"null", R"({"home":null})", false},
+        {"present", R"({"home":{"city":"Paris"}})", true},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::DecodeError error;
+            const auto result =
+                cjm::simdjson::from_json<app::OptionalUser>(item.json, error);
+            REQUIRE(result.has_value());
+            REQUIRE(result->address.has_value() == item.present);
+            if (item.present) {
+                REQUIRE(result->address->city == "Paris");
+            }
+            REQUIRE(error.code == cjm::simdjson::DecodeErrorCode::none);
+            REQUIRE(error.path.empty());
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+        }
+    }
+}

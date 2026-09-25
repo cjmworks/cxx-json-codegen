@@ -26,4 +26,8 @@ struct UserWithOmittedAddress {
     OmittedAddress address; // json:"home"
 };
 
+struct OptionalUser {
+    std::optional<Address> address; // json:"home"
+};
+
 } // namespace app
