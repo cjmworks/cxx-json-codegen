@@ -178,3 +178,20 @@ TEST_CASE("optional.object_encode", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("optional.object_error_path", "[simdjson][encoder]") {
+    app::OptionalUser value;
+    value.address = app::Address{std::string{"\xC3\x28", 2}};
+    cjm::simdjson::EncodeError error;
+
+    const auto result = cjm::simdjson::to_json(value, error);
+
+    REQUIRE_FALSE(result.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::invalid_utf8_string);
+    REQUIRE(error.runtime_error == ::simdjson::UTF8_ERROR);
+    REQUIRE(error.path.size() == 2);
+    REQUIRE(error.path[0].kind == cjm::simdjson::EncodePathSegmentKind::field);
+    REQUIRE(error.path[0].field_name == "home");
+    REQUIRE(error.path[1].kind == cjm::simdjson::EncodePathSegmentKind::field);
+    REQUIRE(error.path[1].field_name == "city");
+}
