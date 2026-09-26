@@ -145,3 +145,36 @@ TEST_CASE("float.optional", "[simdjson][decoder]") {
         }
     }
 }
+
+TEST_CASE("optional.nested_rejected", "[simdjson][decoder]") {
+    using namespace cjm::metadata;
+
+    const FieldType number{FieldTypeKind::SignedInteger, "int", "int"};
+    const FieldType inner{FieldTypeKind::Optional,
+                          "std::optional<int>",
+                          "std::optional",
+                          {number}};
+
+    FieldModel field;
+    field.name = "count";
+    field.json.name = "value";
+    field.type = FieldType{FieldTypeKind::Optional,
+                           "std::optional<std::optional<int>>",
+                           "std::optional",
+                           {inner}};
+
+    TypeModel model;
+    model.name = "NestedOptional";
+    model.fields = {field};
+    ProjectModel project;
+    project.types = {model};
+
+    const auto result = cjm::generator::simdjson::generate_header(project);
+
+    REQUIRE_FALSE(result.success);
+    REQUIRE(result.header.empty());
+    REQUIRE(result.error.find("NestedOptional") != std::string::npos);
+    REQUIRE(result.error.find("field 'count'") != std::string::npos);
+    REQUIRE(result.error.find("json field 'value'") != std::string::npos);
+    REQUIRE(result.error.find(field.type.spelling) != std::string::npos);
+}
