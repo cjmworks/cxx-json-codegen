@@ -177,4 +177,5 @@ TEST_CASE("optional.nested_rejected", "[simdjson][decoder]") {
     REQUIRE(result.error.find("field 'count'") != std::string::npos);
     REQUIRE(result.error.find("json field 'value'") != std::string::npos);
     REQUIRE(result.error.find(field.type.spelling) != std::string::npos);
+    REQUIRE(result.error.find("directly nested optional") != std::string::npos);
 }

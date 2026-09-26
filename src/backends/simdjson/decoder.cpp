@@ -208,7 +208,12 @@ std::optional<UnsupportedCapability> unsupported_capability_for_field(
         reason = "map decode is not implemented";
         break;
     case metadata::FieldTypeKind::Optional:
-        reason = "optional decode is only implemented for scalar inner values";
+        if (field.type.arguments.size() == 1 &&
+            field.type.arguments[0].kind == metadata::FieldTypeKind::Optional) {
+            reason = "directly nested optional types are not supported";
+        } else {
+            reason = "optional inner type or shape is not supported";
+        }
         break;
     case metadata::FieldTypeKind::UserDefined:
         reason = "nested model decode requires a resolved user-defined type";
