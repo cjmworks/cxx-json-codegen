@@ -1037,3 +1037,24 @@ TEST_CASE("literal.view", "[simdjson][encoder]") {
     }
     REQUIRE(actual == expected);
 }
+
+TEST_CASE("object.key_nul", "[simdjson][encoder]") {
+    cjm::metadata::FieldModel field;
+    field.name = "enabled";
+    field.json.name = std::string{"A\0B", 3};
+    field.type.kind == cjm::metadata::FieldTypeKind::Bool;
+
+    cjm::metadata::TypeModel type;
+    type.name = "Flags";
+    type.fields = {field};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type, {});
+
+    const std::string expected =
+        R"(    builder.escape_and_append_with_quotes(std::string_view{"A\000B", 3});)";
+    const auto code = out.str();
+    INFO(code);
+    REQUIRE(code.find(expected) != std::string::npos);
+}

@@ -1,4 +1,5 @@
 #include "backends/simdjson/encoder.h"
+#include "backends/simdjson/string_literal.h"
 
 #include <sstream>
 #include <stdexcept>
@@ -251,8 +252,8 @@ void generate_scalar_object_encode_function(
             << "    }\n"
             << "    first_field = false;\n";
 
-        out << "    builder.escape_and_append_with_quotes(\"" +
-                   field.json.name + "\");\n"
+        out << "    builder.escape_and_append_with_quotes("
+            << cpp_string_view_expression(field.json.name) << ");\n"
             << "    builder.append_colon();\n";
 
         if (field.type.kind == metadata::FieldTypeKind::Optional ||
