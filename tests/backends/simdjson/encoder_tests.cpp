@@ -1005,6 +1005,13 @@ TEST_CASE("literal.basic", "[simdjson][generated]") {
         {"plain", "home", R"("home")"},
         {"quote", R"(display"name)", R"("display\"name")"},
         {"backslash", R"(a\b)", R"("a\\b")"},
+        {"newline", "\n", R"("\012")"},
+        {"nul_then_digit ",
+         std::string_view{"A\0"
+                          "7",
+                          3},
+         R"("A\0007")"},
+        {"invalid_byte", "\xFF", R"("\377")"},
     };
 
     for (const auto& item : cases) {
