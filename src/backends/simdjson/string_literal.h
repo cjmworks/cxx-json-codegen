@@ -26,4 +26,10 @@ inline std::string cpp_string_literal(std::string_view input) {
     return result;
 }
 
+// Generate a C++ string_view expression preserving the input byte length.
+inline std::string cpp_string_view_expression(std::string_view input) {
+    return "std::string_view{" + cpp_string_literal(input) + ", " +
+           std::to_string(input.size()) + "}";
+}
+
 } // namespace cjm::generator::simdjson::detail

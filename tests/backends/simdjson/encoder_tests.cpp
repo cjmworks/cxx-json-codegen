@@ -1025,3 +1025,15 @@ TEST_CASE("literal.basic", "[simdjson][generated]") {
         }
     }
 }
+
+TEST_CASE("literal.view", "[simdjson][encoder]") {
+    const auto actual =
+        cjm::generator::simdjson::detail::cpp_string_view_expression(
+            std::string_view{"A\0B", 3});
+    const std::string expected = R"(std::string_view{"A\000B", 3})";
+
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
+    }
+    REQUIRE(actual == expected);
+}
