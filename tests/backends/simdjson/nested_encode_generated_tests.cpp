@@ -230,3 +230,20 @@ TEST_CASE("optional.object_wrong_type", "[simdjson][decoder]") {
     REQUIRE(error.path[0].kind == cjm::simdjson::DecodePathSegmentKind::field);
     REQUIRE(error.path[0].field_name == "home");
 }
+
+TEST_CASE("optional.object_missing_child", "[simdjson][decoder]") {
+    cjm::simdjson::DecodeError error;
+
+    const auto result =
+        cjm::simdjson::from_json<app::OptionalUser>(R"({"home":{}})", error);
+
+    REQUIRE_FALSE(result.has_value());
+    REQUIRE(error.code ==
+            cjm::simdjson::DecodeErrorCode::missing_required_field);
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+    REQUIRE(error.path.size() == 2);
+    REQUIRE(error.path[0].kind == cjm::simdjson::DecodePathSegmentKind::field);
+    REQUIRE(error.path[0].field_name == "home");
+    REQUIRE(error.path[1].kind == cjm::simdjson::DecodePathSegmentKind::field);
+    REQUIRE(error.path[1].field_name == "city");
+}
