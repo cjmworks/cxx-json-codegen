@@ -216,3 +216,17 @@ TEST_CASE("optional.object_recovers", "[simdjson][encoder]") {
     REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
     REQUIRE(error.path.empty());
 }
+
+TEST_CASE("optional.object_wrong_type", "[simdjson][decoder]") {
+    cjm::simdjson::DecodeError error;
+
+    const auto result =
+        cjm::simdjson::from_json<app::OptionalUser>(R"({"home":42})", error);
+
+    REQUIRE_FALSE(result.has_value());
+    REQUIRE(error.code == cjm::simdjson::DecodeErrorCode::expected_object);
+    REQUIRE(error.runtime_error == ::simdjson::INCORRECT_TYPE);
+    REQUIRE(error.path.size() == 1);
+    REQUIRE(error.path[0].kind == cjm::simdjson::DecodePathSegmentKind::field);
+    REQUIRE(error.path[0].field_name == "home");
+}
