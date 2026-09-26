@@ -318,11 +318,17 @@ including its already-defined optional field rules:
 | Engaged optional | Encode its contained value, including zero/empty values |
 | Disengaged optional array/vector element | Emit `null`; retain index and length |
 | Disengaged optional map value | Retain the key and emit `null` |
-| Engaged outer optional containing a disengaged inner optional | Encode inner `null`; do not reinterpret the outer field as absent |
+| Directly nested optional, such as `optional<optional<T>>` | Unsupported mapping; reject at generation time |
 
 Only the field's own outer optional presence controls `omitempty`; it does not
 propagate to container elements or map values. These rules apply to approved
 type combinations and do not bypass generation-time capability checks.
+
+The 2026-09-25 [optional-field compatibility decision](runtime-json-semantic-profile.md#optional-field-compatibility-decision--2026-09-25)
+aligns supported optional fields with Go `encoding/json` v1 pointer-field
+semantics for fresh-model decoding. It supersedes the earlier nested-optional
+encode proposal. Three-state/PATCH support is not part of #224; supported
+optional objects and container combinations remain separate commitments.
 
 Generated model fields use Metadata IR order. Vectors/arrays preserve element
 order, and ordered maps preserve their comparator's iteration order.

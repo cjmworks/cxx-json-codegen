@@ -136,7 +136,7 @@ must have generation-time diagnostics and documentation.
 | `FloatingPoint` | required | required except accepted blocker | `float`/`double` encode; `long double` encode blocked as documented below |
 | `String` | required | required | decoded strings are model-owned |
 | `Enum` | required | required | JSON string enum mapping |
-| `Optional<T>` | required | required | for every supported `T` |
+| `Optional<T>` | required except accepted blocker | required except accepted blocker | supported inner types; direct optional nesting excluded by the 2026-09-25 decision |
 | `Vector<T>` | required | required | for every supported `T` |
 | `Array<T, N>` | required | required | fixed extent diagnostics required for decode |
 | `Map<std::string, T>` | required | required | string-keyed object mapping |
@@ -151,6 +151,22 @@ must have generation-time diagnostics and documentation.
 | Trailing content | required | n/a | raw-text decode rejects trailing non-whitespace |
 
 ## Parity Blockers
+
+### Accepted scope decision: directly nested optionals (2026-09-25)
+
+The maintainer excluded `optional<optional<T>>` and deeper direct chains from
+the current supported mapping scope. Generic recursive encoding can merge
+distinct C++ states into JSON null; preserving three-state presence instead
+requires a separate field-level contract, not merely another optional layer.
+Follow the [optional-field contract](runtime-json-semantic-profile.md#optionals):
+Go `encoding/json` v1 pointer-field behavior for supported single-layer
+optionals and fresh-model decoding. Generation-time rejection and diagnostics
+must be verified; current nlohmann behavior is not automatically claimed to
+match. #224 covers optional objects, #226 simdjson diagnostics, and #214 parity
+verification. Optional members inside objects and supported optional/container
+compositions are not removed from the MVP by this decision.
+
+### Blocker review criteria
 
 A parity blocker is a concrete reason that a current nlohmann-supported mapping
 cannot safely be supported by the simdjson experimental backend in this release.

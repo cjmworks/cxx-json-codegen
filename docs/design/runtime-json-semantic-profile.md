@@ -275,8 +275,8 @@ Models whose participating fields are bool, supported integers, `float`,
 `double`, owned `std::string`, or enums with Metadata IR definitions, including
 optional fields wrapping these types, now have generated encoders. Required
 nested generated objects are also supported when their participating fields
-are encodable. Containers, optional objects, and nested optionals remain
-incomplete.
+are encodable. Container support and optional-object acceptance remain tracked
+separately. Directly nested optionals are excluded by the decision below.
 `long double` remains
 unsupported; the generator must not silently narrow it to `double`.
 
@@ -347,8 +347,8 @@ still emits an object, for example `{"home":{}}`. This empty-child test uses
 a model with an omitted optional scalar, not a fieldless C++ struct: the
 current frontend omits fieldless models from its generated model set.
 
-Required-object support does not imply optional-object or nested-optional
-support (#224), container support (#213), recursive-model support, or complete
+Required-object support does not imply completed optional-object acceptance
+(#224), container support (#213), recursive-model support, or complete
 resource-failure conformance (#227/#214). No performance claim is made.
 
 ## Strings
@@ -425,6 +425,47 @@ present non-null field: decode T
 
 If decoding `T` fails, decoding the optional field fails.
 
+### Optional field compatibility decision — 2026-09-25
+
+CJM's optional-field contract follows ordinary pointer-valued struct fields
+in Go's traditional `encoding/json` (v1 semantics), not Go's pointer storage
+or allocation model. This is a bounded compatibility target, not a claim of
+complete Go JSON compatibility or verified cross-backend parity.
+
+| State / input | CJM behavior |
+| --- | --- |
+| Disengaged optional, with `omitempty` | Omit the member |
+| Disengaged optional, without `omitempty` | Emit `null` |
+| Engaged optional | Encode the contained value, retaining zero, false, empty strings and empty objects |
+| Missing field when decoding a fresh model | `std::nullopt` |
+| Explicit `null` | `std::nullopt` |
+| Present non-null field | Decode `T`; propagate failures |
+
+Go leaves a missing field unchanged when decoding into an existing object.
+CJM's simdjson root API returns a fresh model, not an in-place merge/PATCH
+operation. Do not infer equivalent update behavior for existing destinations.
+Ordinary non-optional Go fields, nil slices/maps, and Go JSON v2 omission
+rules are not included in this compatibility target.
+
+References: [Go Marshal](https://pkg.go.dev/encoding/json#Marshal),
+[Go Unmarshal](https://pkg.go.dev/encoding/json#Unmarshal). In particular,
+a non-nil pointer to zero is not omitted by v1 `omitempty`; similarly, CJM
+checks optional engagement rather than recursively testing the contained value.
+
+Direct nesting such as `optional<optional<T>>` (including deeper chains) is
+outside the current approved mapping scope and must receive generation-time
+rejection, not silently collapse distinct C++ states. This restriction applies
+wherever that type shape occurs in a participating field. It does not prohibit
+an optional object containing optional members, or otherwise supported
+`optional<vector<optional<T>>>` compositions. Ignored fields remain ignored.
+
+Three-state Missing/Null/Value or PATCH behavior requires a separate explicit
+design if a real use case arises. It is not an implementation task in #224.
+Existing backend behavior must be audited against this contract before claiming
+parity: #214 owns shared input/output and Go-reference cases; #226 owns remaining
+simdjson generation-time diagnostics. Do not silently change other backends
+as part of this scope decision.
+
 ### Experimental simdjson optional scalar status
 
 As of 2026-09-20, generated encoding supports optional bool, supported signed
@@ -443,9 +484,9 @@ target-float overflow after a successful double read, and runtime number
 errors; recovery clears the previous error and path.
 
 This completes the current optional scalar slice, not all `optional<T>`
-combinations. Optional nested objects, containers, and nested optionals still
-need capability and integration coverage as their underlying encode support
-is added. The broader MVP composition contract is unchanged.
+combinations. Optional-object acceptance and container combinations still
+need their respective capability and integration coverage. Directly nested
+optionals are excluded by the 2026-09-25 decision, rather than pending support.
 
 ---
 
