@@ -993,3 +993,28 @@ TEST_CASE("capability.optional_object", "[simdjson][encoder]") {
     nested.arguments = {optional};
     REQUIRE_FALSE(is_supported_value_encode_type(nested, available));
 }
+
+#include "backends/simdjson/string_literal.h"
+
+TEST_CASE("literal.basic", "[simdjson][generated]") {
+    const struct {
+        const char* name;
+        std::string_view input;
+        std::string_view expected;
+    } cases[] = {
+        {"plain", "home", R"("home")"},
+        {"quote", R"(display"name)", R"("display\"name")"},
+        {"backslash", R"(a\b)", R"("a\\b")"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            const auto actual =
+                cjm::generator::simdjson::detail::cpp_string_literal(
+                    item.input);
+            if (actual != item.expected) {
+                FAIL(cjm::test::format_golden_mismatch(item.expected, actual));
+            }
+        }
+    }
+}
