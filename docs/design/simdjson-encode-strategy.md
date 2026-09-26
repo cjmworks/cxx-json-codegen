@@ -3,14 +3,14 @@
 Status: official writer and API/error contract selected under #211.
 Direct-field bool, integer, float/double, owned-string, and enum encoding is
 implemented with generated-code regression coverage, including optional fields
-wrapping those scalar types, and required nested generated objects using the
-same root builder. The broader #212/#213 encoder scope and
+wrapping those scalar types, and required/optional nested generated objects
+using the same root builder. The broader #212/#213 encoder scope and
 #214 conformance work remain incomplete.
 
 Parent contract: [simdjson Experimental Backend MVP](simdjson-experimental-backend-mvp.md),
 epic #203. Evidence recorded on 2026-09-08 against simdjson v4.6.4.
 
-Implementation status updated on 2026-09-23. See the
+Implementation status updated on 2026-09-25. See the
 [encode runtime policy](runtime-json-semantic-profile.md#experimental-simdjson-encode-policy)
 for current scope, optional omission/null behavior, finite-value and UTF-8 checks, enum mapping, escaping coverage,
 and the meaning of success-after-failure recovery. The complete contract below includes planned

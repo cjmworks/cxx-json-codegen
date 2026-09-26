@@ -273,10 +273,10 @@ failed call leaves no stale code, runtime error, or path.
 
 Models whose participating fields are bool, supported integers, `float`,
 `double`, owned `std::string`, or enums with Metadata IR definitions, including
-optional fields wrapping these types, now have generated encoders. Required
+optional fields wrapping these types, now have generated encoders. Required and optional
 nested generated objects are also supported when their participating fields
-are encodable. Container support and optional-object acceptance remain tracked
-separately. Directly nested optionals are excluded by the decision below.
+are encodable. Container support remains tracked separately.
+Directly nested optionals are excluded by the decision below.
 `long double` remains
 unsupported; the generator must not silently narrow it to `double`.
 
@@ -347,8 +347,8 @@ still emits an object, for example `{"home":{}}`. This empty-child test uses
 a model with an omitted optional scalar, not a fieldless C++ struct: the
 current frontend omits fieldless models from its generated model set.
 
-Required-object support does not imply completed optional-object acceptance
-(#224), container support (#213), recursive-model support, or complete
+Optional-object acceptance is recorded below. Object support does not imply
+container support (#213), recursive-model support, or complete
 resource-failure conformance (#227/#214). No performance claim is made.
 
 ## Strings
@@ -484,9 +484,39 @@ target-float overflow after a successful double read, and runtime number
 errors; recovery clears the previous error and path.
 
 This completes the current optional scalar slice, not all `optional<T>`
-combinations. Optional-object acceptance and container combinations still
-need their respective capability and integration coverage. Directly nested
+combinations. Optional-object acceptance is recorded below; container
+combinations still need their capability and integration coverage. Directly nested
 optionals are excluded by the 2026-09-25 decision, rather than pending support.
+
+### Experimental simdjson optional object status
+
+As of 2026-09-25, #224's optional-object slice is implemented and verified.
+Encoding reuses optional presence handling and the generated child-object
+encoder, sharing the root builder. The generation-time capability check
+requires the child encoder to be available before enabling its parent.
+Decoding constructs a temporary child value and assigns it to the optional
+only after successful child decoding; qualified C++ names are preserved.
+
+Focused generated C++17 tests verify:
+
+- missing/null input produces a disengaged optional; object input produces a
+  populated child;
+- disengaged output is omitted with `omitempty` and otherwise emits `null`;
+- an engaged child with all of its own fields omitted still emits `{}`;
+- invalid UTF-8 during encoding preserves `home → city`, without an optional
+  path segment, and returns no partial output;
+- a successful encode after failure clears the previous error and path;
+- non-object input reports `expected_object` at `home`, while a missing
+  required child field reports `missing_required_field` at `home → city`;
+- the public generation entry rejects direct nested optional fields with a
+  model/field/type diagnostic instead of generating partial code.
+
+Verification at commit `008f37c`: full build and CTest passed 162/162;
+`optional.object*` passed 6 cases / 62 assertions, and
+`optional.nested_rejected` passed 7 assertions. Existing golden tests passed
+without further golden changes. These are local simdjson results, not proof
+of Go-reference or cross-backend conformance; that remains #214. Optional
+containers remain #213, and direct optional nesting remains excluded.
 
 ---
 
