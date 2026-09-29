@@ -218,7 +218,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("city");
+    builder.escape_and_append_with_quotes(std::string_view{"city", 4});
     builder.append_colon();
     builder.escape_and_append_with_quotes(value.city);
     builder.end_object();
@@ -417,14 +417,14 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("id");
+    builder.escape_and_append_with_quotes(std::string_view{"id", 2});
     builder.append_colon();
     builder.append(value.id);
     if (!first_field) {
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("address");
+    builder.escape_and_append_with_quotes(std::string_view{"address", 7});
     builder.append_colon();
     if (!encode_object(builder, value.address, error)) {
         error.path.insert(error.path.begin(),

@@ -225,7 +225,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("id");
+    builder.escape_and_append_with_quotes(std::string_view{"id", 2});
     builder.append_colon();
     builder.append(value.id);
     builder.end_object();

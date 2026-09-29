@@ -210,7 +210,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("enabled");
+    builder.escape_and_append_with_quotes(std::string_view{"enabled", 7});
     builder.append_colon();
     builder.append(value.enabled);
     builder.end_object();

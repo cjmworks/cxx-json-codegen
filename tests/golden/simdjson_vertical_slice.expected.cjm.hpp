@@ -218,7 +218,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("city");
+    builder.escape_and_append_with_quotes(std::string_view{"city", 4});
     builder.append_colon();
     builder.escape_and_append_with_quotes(value.city);
     builder.end_object();
@@ -470,7 +470,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("id");
+    builder.escape_and_append_with_quotes(std::string_view{"id", 2});
     builder.append_colon();
     builder.append(value.id);
     if (!::simdjson::validate_utf8(value.name)) {
@@ -483,14 +483,14 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("name");
+    builder.escape_and_append_with_quotes(std::string_view{"name", 4});
     builder.append_colon();
     builder.escape_and_append_with_quotes(value.name);
     if (!first_field) {
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("maybe_count");
+    builder.escape_and_append_with_quotes(std::string_view{"maybe_count", 11});
     builder.append_colon();
     if ((value.maybe_count).has_value()) {
         builder.append(*(value.maybe_count));
@@ -501,7 +501,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("address");
+    builder.escape_and_append_with_quotes(std::string_view{"address", 7});
     builder.append_colon();
     if (!encode_object(builder, value.address, error)) {
         error.path.insert(error.path.begin(),

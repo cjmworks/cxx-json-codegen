@@ -291,21 +291,21 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("count");
+    builder.escape_and_append_with_quotes(std::string_view{"count", 5});
     builder.append_colon();
     builder.append(value.count);
     if (!first_field) {
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("limit");
+    builder.escape_and_append_with_quotes(std::string_view{"limit", 5});
     builder.append_colon();
     builder.append(value.limit);
     if (!first_field) {
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("narrow");
+    builder.escape_and_append_with_quotes(std::string_view{"narrow", 6});
     builder.append_colon();
     builder.append(value.narrow);
     builder.end_object();

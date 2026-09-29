@@ -259,7 +259,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("ratio");
+    builder.escape_and_append_with_quotes(std::string_view{"ratio", 5});
     builder.append_colon();
     builder.append(value.ratio);
     if (!std::isfinite(value.amount)) {
@@ -272,7 +272,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("amount");
+    builder.escape_and_append_with_quotes(std::string_view{"amount", 6});
     builder.append_colon();
     builder.append(value.amount);
     builder.end_object();

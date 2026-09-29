@@ -322,7 +322,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("maybe_enabled");
+    builder.escape_and_append_with_quotes(std::string_view{"maybe_enabled", 13});
     builder.append_colon();
     if ((value.maybe_enabled).has_value()) {
         builder.append(*(value.maybe_enabled));
@@ -333,7 +333,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("maybe_count");
+    builder.escape_and_append_with_quotes(std::string_view{"maybe_count", 11});
     builder.append_colon();
     if ((value.maybe_count).has_value()) {
         builder.append(*(value.maybe_count));
@@ -344,7 +344,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("maybe_limit");
+    builder.escape_and_append_with_quotes(std::string_view{"maybe_limit", 11});
     builder.append_colon();
     if ((value.maybe_limit).has_value()) {
         builder.append(*(value.maybe_limit));
@@ -355,7 +355,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("maybe_name");
+    builder.escape_and_append_with_quotes(std::string_view{"maybe_name", 10});
     builder.append_colon();
     if ((value.maybe_name).has_value()) {
         if (!::simdjson::validate_utf8(*(value.maybe_name))) {
@@ -372,7 +372,7 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("maybe_status");
+    builder.escape_and_append_with_quotes(std::string_view{"maybe_status", 12});
     builder.append_colon();
     if ((value.maybe_status).has_value()) {
         if (*(value.maybe_status) == ::Status::Active) {
