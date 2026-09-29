@@ -83,14 +83,14 @@ inline bool encode_object(
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("active");
+    builder.escape_and_append_with_quotes(std::string_view{"active", 6});
     builder.append_colon();
     builder.append(value.enabled);
     if (!first_field) {
         builder.append_comma();
     }
     first_field = false;
-    builder.escape_and_append_with_quotes("visible");
+    builder.escape_and_append_with_quotes(std::string_view{"visible", 7});
     builder.append_colon();
     builder.append(value.visible);
     builder.end_object();
@@ -241,8 +241,8 @@ TEST_CASE("string.guard", "[simdjson][encoder]") {
     }
 )";
     const auto guard_pos = code.find(guard);
-    const auto key_pos =
-        code.find(R"(builder.escape_and_append_with_quotes("username");)");
+    const auto key_pos = code.find(
+        R"(builder.escape_and_append_with_quotes(std::string_view{"username", 8});)");
     REQUIRE(guard_pos != std::string::npos);
     REQUIRE(key_pos != std::string::npos);
     REQUIRE(guard_pos + guard.size() <= key_pos);
@@ -487,8 +487,9 @@ TEST_CASE("object.commas", "[simdjson][encoder]") {
                 "        builder.append_comma();\n"
                 "    }\n"
                 "    first_field = false;\n"
-                "    builder.escape_and_append_with_quotes(\"" +
-                std::string(name) + "\");";
+                "    "
+                "builder.escape_and_append_with_quotes(std::string_view{\"" +
+                std::string(name) + "\", 7});";
             const auto write = code.find(expected);
             REQUIRE(write != std::string::npos);
             REQUIRE(init < write);
@@ -583,7 +584,8 @@ TEST_CASE("optional.omission", "[simdjson][encoder]") {
         "        builder.append_comma();\n"
         "    }\n"
         "    first_field = false;\n"
-        "    builder.escape_and_append_with_quotes(\"total\");\n"
+        "    builder.escape_and_append_with_quotes(std::string_view{\"total\", "
+        "5});\n"
         "    builder.append_colon();\n"
         "        if ((value.count).has_value()) {\n"
         "            builder.append(*(value.count));\n"
@@ -1042,7 +1044,7 @@ TEST_CASE("object.key_nul", "[simdjson][encoder]") {
     cjm::metadata::FieldModel field;
     field.name = "enabled";
     field.json.name = std::string{"A\0B", 3};
-    field.type.kind == cjm::metadata::FieldTypeKind::Bool;
+    field.type.kind = cjm::metadata::FieldTypeKind::Bool;
 
     cjm::metadata::TypeModel type;
     type.name = "Flags";
