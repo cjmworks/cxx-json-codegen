@@ -318,6 +318,12 @@ inline bool encode_object(
     EncodeError& error) {
     builder.start_object();
     bool first_field = true;
+    if (!::simdjson::validate_utf8(std::string_view{"maybe_enabled", 13})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"maybe_enabled", 13}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!first_field) {
         builder.append_comma();
     }
@@ -328,6 +334,12 @@ inline bool encode_object(
         builder.append(*(value.maybe_enabled));
     } else {
         builder.append_null();
+    }
+    if (!::simdjson::validate_utf8(std::string_view{"maybe_count", 11})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"maybe_count", 11}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
     }
     if (!first_field) {
         builder.append_comma();
@@ -340,6 +352,12 @@ inline bool encode_object(
     } else {
         builder.append_null();
     }
+    if (!::simdjson::validate_utf8(std::string_view{"maybe_limit", 11})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"maybe_limit", 11}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!first_field) {
         builder.append_comma();
     }
@@ -350,6 +368,12 @@ inline bool encode_object(
         builder.append(*(value.maybe_limit));
     } else {
         builder.append_null();
+    }
+    if (!::simdjson::validate_utf8(std::string_view{"maybe_name", 10})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"maybe_name", 10}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
     }
     if (!first_field) {
         builder.append_comma();
@@ -367,6 +391,12 @@ inline bool encode_object(
         builder.escape_and_append_with_quotes(*(value.maybe_name));
     } else {
         builder.append_null();
+    }
+    if (!::simdjson::validate_utf8(std::string_view{"maybe_status", 12})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"maybe_status", 12}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
     }
     if (!first_field) {
         builder.append_comma();

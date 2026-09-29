@@ -221,6 +221,12 @@ inline bool encode_object(
     EncodeError& error) {
     builder.start_object();
     bool first_field = true;
+    if (!::simdjson::validate_utf8(std::string_view{"id", 2})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"id", 2}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!first_field) {
         builder.append_comma();
     }

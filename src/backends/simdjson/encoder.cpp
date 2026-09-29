@@ -242,6 +242,9 @@ void generate_scalar_object_encode_function(
             out << "    if (value." + field.name + ".has_value()) {\n";
         }
 
+        generate_object_key_validation(out, field.json.name,
+                                       omit_disengaged ? 2 : 1);
+
         if (field.type.kind == metadata::FieldTypeKind::FloatingPoint) {
             out << "    if (!std::isfinite(value." + field.name + ")) {\n"
                 << "        error.code = EncodeErrorCode::non_finite_number;\n"

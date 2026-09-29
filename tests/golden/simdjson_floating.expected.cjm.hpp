@@ -249,6 +249,12 @@ inline bool encode_object(
     EncodeError& error) {
     builder.start_object();
     bool first_field = true;
+    if (!::simdjson::validate_utf8(std::string_view{"ratio", 5})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"ratio", 5}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!std::isfinite(value.ratio)) {
         error.code = EncodeErrorCode::non_finite_number;
         error.path = {{EncodePathSegmentKind::field, "ratio", 0}};
@@ -262,6 +268,12 @@ inline bool encode_object(
     builder.escape_and_append_with_quotes(std::string_view{"ratio", 5});
     builder.append_colon();
     builder.append(value.ratio);
+    if (!::simdjson::validate_utf8(std::string_view{"amount", 6})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"amount", 6}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!std::isfinite(value.amount)) {
         error.code = EncodeErrorCode::non_finite_number;
         error.path = {{EncodePathSegmentKind::field, "amount", 0}};

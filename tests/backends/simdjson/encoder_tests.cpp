@@ -79,6 +79,12 @@ inline bool encode_object(
     EncodeError& error) {
     builder.start_object();
     bool first_field = true;
+    if (!::simdjson::validate_utf8(std::string_view{"active", 6})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"active", 6}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!first_field) {
         builder.append_comma();
     }
@@ -86,6 +92,12 @@ inline bool encode_object(
     builder.escape_and_append_with_quotes(std::string_view{"active", 6});
     builder.append_colon();
     builder.append(value.enabled);
+    if (!::simdjson::validate_utf8(std::string_view{"visible", 7})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"visible", 7}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!first_field) {
         builder.append_comma();
     }
@@ -99,7 +111,11 @@ inline bool encode_object(
 
 } // namespace cjm::simdjson::detail
 )";
-    REQUIRE(out.str() == expected);
+    const auto actual = out.str();
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
+    }
+    REQUIRE(actual == expected);
 }
 
 TEST_CASE("generate_header.encodes_bool_and_integer_fields",
@@ -580,6 +596,13 @@ TEST_CASE("optional.omission", "[simdjson][encoder]") {
 
     const std::string expected =
         "    if (value.count.has_value()) {\n"
+        "        if (!::simdjson::validate_utf8(std::string_view{\"total\", 5})) {\n"
+        "            error.code = EncodeErrorCode::invalid_utf8_key;\n"
+        "            error.path = {{EncodePathSegmentKind::field, "
+        "std::string{std::string_view{\"total\", 5}}, 0}};\n"
+        "            error.runtime_error = ::simdjson::UTF8_ERROR;\n"
+        "            return false;\n"
+        "        }\n"
         "    if (!first_field) {\n"
         "        builder.append_comma();\n"
         "    }\n"
@@ -1080,4 +1103,32 @@ TEST_CASE("key.validation", "[simdjson][encoder]") {
         FAIL(cjm::test::format_golden_mismatch(expected, actual));
     }
     REQUIRE(actual == expected);
+}
+
+TEST_CASE("key.omission_guard", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "count";
+    field.json.name = "total";
+    field.json.omit_empty = true;
+    field.type.kind = FieldTypeKind::Optional;
+    FieldType inner;
+    inner.kind = FieldTypeKind::SignedInteger;
+    field.type.arguments = {inner};
+
+    TypeModel type;
+    type.name = "Counts";
+    type.fields = {field};
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_scalar_object_encode_function(
+        out, type, {});
+
+    const std::string expected = R"(    if (value.count.has_value()) {
+        if (!::simdjson::validate_utf8(std::string_view{"total", 5})) {
+)";
+    const auto code = out.str();
+    INFO(code);
+    REQUIRE(code.find(expected) != std::string::npos);
 }

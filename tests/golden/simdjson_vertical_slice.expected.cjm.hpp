@@ -208,6 +208,12 @@ inline bool encode_object(
     EncodeError& error) {
     builder.start_object();
     bool first_field = true;
+    if (!::simdjson::validate_utf8(std::string_view{"city", 4})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"city", 4}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!::simdjson::validate_utf8(value.city)) {
         error.code = EncodeErrorCode::invalid_utf8_string;
         error.path = {{EncodePathSegmentKind::field, "city", 0}};
@@ -466,6 +472,12 @@ inline bool encode_object(
     EncodeError& error) {
     builder.start_object();
     bool first_field = true;
+    if (!::simdjson::validate_utf8(std::string_view{"id", 2})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"id", 2}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!first_field) {
         builder.append_comma();
     }
@@ -473,6 +485,12 @@ inline bool encode_object(
     builder.escape_and_append_with_quotes(std::string_view{"id", 2});
     builder.append_colon();
     builder.append(value.id);
+    if (!::simdjson::validate_utf8(std::string_view{"name", 4})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"name", 4}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!::simdjson::validate_utf8(value.name)) {
         error.code = EncodeErrorCode::invalid_utf8_string;
         error.path = {{EncodePathSegmentKind::field, "name", 0}};
@@ -486,6 +504,12 @@ inline bool encode_object(
     builder.escape_and_append_with_quotes(std::string_view{"name", 4});
     builder.append_colon();
     builder.escape_and_append_with_quotes(value.name);
+    if (!::simdjson::validate_utf8(std::string_view{"maybe_count", 11})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"maybe_count", 11}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
     if (!first_field) {
         builder.append_comma();
     }
@@ -496,6 +520,12 @@ inline bool encode_object(
         builder.append(*(value.maybe_count));
     } else {
         builder.append_null();
+    }
+    if (!::simdjson::validate_utf8(std::string_view{"address", 7})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"address", 7}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
     }
     if (!first_field) {
         builder.append_comma();
