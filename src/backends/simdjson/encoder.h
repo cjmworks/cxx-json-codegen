@@ -36,6 +36,11 @@ void generate_value_encode(std::ostringstream& out,
                            const std::vector<metadata::EnumModel>& enums,
                            std::size_t indent_level);
 
+// Generate UTF-8 validation for one emitted object key.
+void generate_object_key_validation(std::ostringstream& out,
+                                    std::string_view key,
+                                    std::size_t indent_level);
+
 // Generate an object encoder for supported scalar fields.
 void generate_scalar_object_encode_function(
     std::ostringstream& out, const metadata::TypeModel& type,

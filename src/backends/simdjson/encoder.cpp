@@ -195,6 +195,22 @@ void generate_value_encode(std::ostringstream& out,
     }
 }
 
+// Generate UTF-8 validation for one emitted object key.
+void generate_object_key_validation(std::ostringstream& out,
+                                    std::string_view key,
+                                    std::size_t indent_level) {
+    const std::string indent(indent_level * 4, ' ');
+    const auto expression = cpp_string_view_expression(key);
+
+    out << indent << "if (!::simdjson::validate_utf8(" << expression << ")) {\n"
+        << indent << "    error.code = EncodeErrorCode::invalid_utf8_key;\n"
+        << indent << "    error.path = {{EncodePathSegmentKind::field, "
+        << "std::string{" << expression << "}, 0}};\n"
+        << indent << "    error.runtime_error = ::simdjson::UTF8_ERROR;\n"
+        << indent << "    return false;\n"
+        << indent << "}\n";
+}
+
 // Generate an object encoder for supported scalar fields.
 void generate_scalar_object_encode_function(
     std::ostringstream& out, const metadata::TypeModel& type,

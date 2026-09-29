@@ -1060,3 +1060,24 @@ TEST_CASE("object.key_nul", "[simdjson][encoder]") {
     INFO(code);
     REQUIRE(code.find(expected) != std::string::npos);
 }
+
+TEST_CASE("key.validation", "[simdjson][encoder]") {
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_object_key_validation(
+        out, std::string_view{"A\0\xFF", 3}, 1);
+
+    const std::string expected =
+        R"(    if (!::simdjson::validate_utf8(std::string_view{"A\000\377", 3})) {
+        error.code = EncodeErrorCode::invalid_utf8_key;
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"A\000\377", 3}}, 0}};
+        error.runtime_error = ::simdjson::UTF8_ERROR;
+        return false;
+    }
+)";
+
+    const auto actual = out.str();
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
+    }
+    REQUIRE(actual == expected);
+}
