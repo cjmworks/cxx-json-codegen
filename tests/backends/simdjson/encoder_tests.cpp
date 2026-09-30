@@ -913,6 +913,70 @@ TEST_CASE("capability.scalar", "[simdjson][encoder]") {
     }
 }
 
+TEST_CASE("capability.long_double", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    const struct {
+        const char* name;
+        bool ignored;
+        bool success;
+    } cases[] = {
+        {"participating", false, false},
+        {"ignored", true, true},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            FieldModel extended;
+            extended.name = "ratio";
+            extended.json.name = "amount";
+            extended.json.ignored = item.ignored;
+            extended.type = FieldType{FieldTypeKind::FloatingPoint,
+                                      "long double", "long double"};
+
+            FieldModel count;
+            count.name = "count";
+            count.json.name = "count";
+            count.type = FieldType{FieldTypeKind::SignedInteger, "int", "int"};
+
+            TypeModel model;
+            model.name = "ExtendedValues";
+            model.qualified_name = "app::ExtendedValues";
+            model.fields = {extended, count};
+            ProjectModel project;
+            project.types = {model};
+
+            const auto result =
+                cjm::generator::simdjson::generate_header(project);
+            INFO(result.error);
+            REQUIRE(result.success == item.success);
+
+            if (!item.success) {
+                REQUIRE(result.header.empty());
+                REQUIRE(result.error.find("unsupported capability") !=
+                        std::string::npos);
+                REQUIRE(result.error.find("model 'app::ExtendedValues'") !=
+                        std::string::npos);
+                REQUIRE(result.error.find("field 'ratio'") != std::string::npos);
+                REQUIRE(result.error.find("json field 'amount'") !=
+                        std::string::npos);
+                REQUIRE(result.error.find("C++ type 'long double'") !=
+                        std::string::npos);
+            } else {
+                REQUIRE(result.error.empty());
+                REQUIRE(result.header.find("from_json<::app::ExtendedValues>") !=
+                        std::string::npos);
+                REQUIRE(result.header.find("to_json<::app::ExtendedValues>") !=
+                        std::string::npos);
+                REQUIRE(result.header.find("builder.append(value.count);") !=
+                        std::string::npos);
+                REQUIRE(result.header.find("value.ratio") == std::string::npos);
+                REQUIRE(result.header.find("\"amount\"") == std::string::npos);
+            }
+        }
+    }
+}
+
 TEST_CASE("capability.object", "[simdjson][encoder]") {
     using namespace cjm::metadata;
     FieldType type;
