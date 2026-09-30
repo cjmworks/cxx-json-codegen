@@ -384,7 +384,7 @@ inline bool encode_object(
     if ((value.maybe_name).has_value()) {
         if (!::simdjson::validate_utf8(*(value.maybe_name))) {
             error.code = EncodeErrorCode::invalid_utf8_string;
-            error.path = {{EncodePathSegmentKind::field, "maybe_name", 0}};
+            error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"maybe_name", 10}}, 0}};
             error.runtime_error = ::simdjson::UTF8_ERROR;
             return false;
         }
@@ -413,7 +413,7 @@ inline bool encode_object(
         }
         else {
             error.code = EncodeErrorCode::invalid_enum_value;
-            error.path = {{EncodePathSegmentKind::field, "maybe_status", 0}};
+            error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"maybe_status", 12}}, 0}};
             error.runtime_error = ::simdjson::SUCCESS;
             return false;
         }

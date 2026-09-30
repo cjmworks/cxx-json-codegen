@@ -250,7 +250,7 @@ inline bool encode_object(
     }
     if (!::simdjson::validate_utf8(value.name)) {
         error.code = EncodeErrorCode::invalid_utf8_string;
-        error.path = {{EncodePathSegmentKind::field, "name", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"name", 4}}, 0}};
         error.runtime_error = ::simdjson::UTF8_ERROR;
         return false;
     }

@@ -242,7 +242,7 @@ inline bool encode_object(
     }
     else {
         error.code = EncodeErrorCode::invalid_enum_value;
-        error.path = {{EncodePathSegmentKind::field, "status", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"status", 6}}, 0}};
         error.runtime_error = ::simdjson::SUCCESS;
         return false;
     }

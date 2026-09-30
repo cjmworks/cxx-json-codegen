@@ -257,7 +257,7 @@ inline bool encode_object(
     }
     if (!std::isfinite(value.ratio)) {
         error.code = EncodeErrorCode::non_finite_number;
-        error.path = {{EncodePathSegmentKind::field, "ratio", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"ratio", 5}}, 0}};
         error.runtime_error = ::simdjson::SUCCESS;
         return false;
     }
@@ -276,7 +276,7 @@ inline bool encode_object(
     }
     if (!std::isfinite(value.amount)) {
         error.code = EncodeErrorCode::non_finite_number;
-        error.path = {{EncodePathSegmentKind::field, "amount", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"amount", 6}}, 0}};
         error.runtime_error = ::simdjson::SUCCESS;
         return false;
     }

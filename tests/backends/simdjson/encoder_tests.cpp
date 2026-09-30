@@ -181,7 +181,7 @@ TEST_CASE("float.guard", "[simdjson][encoder]") {
 
     const std::string guard = R"(    if (!std::isfinite(value.price)) {
         error.code = EncodeErrorCode::non_finite_number;
-        error.path = {{EncodePathSegmentKind::field, "cost", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"cost", 4}}, 0}};
         error.runtime_error = ::simdjson::SUCCESS;
         return false;
     }
@@ -251,7 +251,7 @@ TEST_CASE("string.guard", "[simdjson][encoder]") {
     const std::string guard =
         R"(   if (!::simdjson::validate_utf8(value.name)) {
         error.code = EncodeErrorCode::invalid_utf8_string;
-        error.path = {{EncodePathSegmentKind::field, "username", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"username", 8}}, 0}};
         error.runtime_error = ::simdjson::UTF8_ERROR;
         return false;
     }
@@ -356,7 +356,7 @@ TEST_CASE("enum.write", "[simdjson][encoder]") {
             "unmapped value",
             R"(else {
         error.code = EncodeErrorCode::invalid_enum_value;
-        error.path = {{EncodePathSegmentKind::field, "state", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"state", 5}}, 0}};
         error.runtime_error = ::simdjson::SUCCESS;
         return false;
     })",
@@ -394,7 +394,7 @@ TEST_CASE("enum.empty", "[simdjson][encoder]") {
 
     const std::string expected = R"({
         error.code = EncodeErrorCode::invalid_enum_value;
-        error.path = {{EncodePathSegmentKind::field, "state", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"state", 5}}, 0}};
         error.runtime_error = ::simdjson::SUCCESS;
         return false;
     })";
@@ -703,7 +703,7 @@ TEST_CASE("value.string", "[simdjson][encoder]") {
         "        if (!::simdjson::validate_utf8(*(value.name))) {\n"
         "            error.code = EncodeErrorCode::invalid_utf8_string;\n"
         "            error.path = {{EncodePathSegmentKind::field, "
-        "\"username\", 0}};\n"
+        "std::string{std::string_view{\"username\", 8}}, 0}};\n"
         "            error.runtime_error = ::simdjson::UTF8_ERROR;\n"
         "            return false;\n"
         "        }\n"
@@ -738,8 +738,8 @@ TEST_CASE("enum.expression", "[simdjson][encoder]") {
         "        }\n"
         "        else {\n"
         "            error.code = EncodeErrorCode::invalid_enum_value;\n"
-        "            error.path = {{EncodePathSegmentKind::field, \"state\", "
-        "0}};\n"
+        "            error.path = {{EncodePathSegmentKind::field, "
+        "std::string{std::string_view{\"state\", 5}}, 0}};\n"
         "            error.runtime_error = ::simdjson::SUCCESS;\n"
         "            return false;\n"
         "        }\n";
@@ -780,8 +780,8 @@ TEST_CASE("value.optional_enum", "[simdjson][encoder]") {
         "        }\n"
         "        else {\n"
         "            error.code = EncodeErrorCode::invalid_enum_value;\n"
-        "            error.path = {{EncodePathSegmentKind::field, \"state\", "
-        "0}};\n"
+        "            error.path = {{EncodePathSegmentKind::field, "
+        "std::string{std::string_view{\"state\", 5}}, 0}};\n"
         "            error.runtime_error = ::simdjson::SUCCESS;\n"
         "            return false;\n"
         "        }\n"
@@ -818,7 +818,7 @@ TEST_CASE("value.optional_float", "[simdjson][encoder]") {
         "        if (!std::isfinite(*(value.ratio))) {\n"
         "            error.code = EncodeErrorCode::non_finite_number;\n"
         "            error.path = {{EncodePathSegmentKind::field, "
-        "\"fraction\", 0}};\n"
+        "std::string{std::string_view{\"fraction\", 8}}, 0}};\n"
         "            error.runtime_error = ::simdjson::SUCCESS;\n"
         "            return false;\n"
         "        }\n"
@@ -849,7 +849,7 @@ TEST_CASE("value.object", "[simdjson][encoder]") {
         "    if (!encode_object(builder, value.address, error)) {\n"
         "        error.path.insert(error.path.begin(),\n"
         "            EncodePathSegment{EncodePathSegmentKind::field, "
-        "\"home\", 0});\n"
+        "std::string{std::string_view{\"home\", 4}}, 0});\n"
         "        return false;\n"
         "    }\n";
 

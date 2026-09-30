@@ -216,7 +216,7 @@ inline bool encode_object(
     }
     if (!::simdjson::validate_utf8(value.city)) {
         error.code = EncodeErrorCode::invalid_utf8_string;
-        error.path = {{EncodePathSegmentKind::field, "city", 0}};
+        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"city", 4}}, 0}};
         error.runtime_error = ::simdjson::UTF8_ERROR;
         return false;
     }
@@ -446,7 +446,7 @@ inline bool encode_object(
     builder.append_colon();
     if (!encode_object(builder, value.address, error)) {
         error.path.insert(error.path.begin(),
-            EncodePathSegment{EncodePathSegmentKind::field, "address", 0});
+            EncodePathSegment{EncodePathSegmentKind::field, std::string{std::string_view{"address", 7}}, 0});
         return false;
     }
     builder.end_object();
