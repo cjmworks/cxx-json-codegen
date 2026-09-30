@@ -1193,3 +1193,31 @@ TEST_CASE("enum.error_key", "[simdjson][encoder]") {
     INFO(code);
     REQUIRE(code.find(expected) != std::string::npos);
 }
+
+TEST_CASE("object.parent_key", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "address";
+    field.json.name = std::string{"A\0B", 3};
+    field.type.kind = FieldTypeKind::UserDefined;
+    field.type.qualified_name = "app::Status";
+
+    std::ostringstream out;
+    cjm::generator::simdjson::detail::generate_value_encode(
+        out, field, field.type, "value.address", {}, 1);
+
+    const std::string expected =
+        R"(    if (!encode_object(builder, value.address, error)) {
+        error.path.insert(error.path.begin(),
+            EncodePathSegment{EncodePathSegmentKind::field, std::string{std::string_view{"A\000B", 3}}, 0});
+        return false;
+    }
+)";
+
+    const auto actual = out.str();
+    if (actual != expected) {
+        FAIL(cjm::test::format_golden_mismatch(expected, actual));
+    }
+    REQUIRE(actual == expected);
+}

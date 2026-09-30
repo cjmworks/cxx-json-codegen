@@ -187,8 +187,8 @@ void generate_value_encode(std::ostringstream& out,
             << ", error)) {\n"
             << indent << "    error.path.insert(error.path.begin(),\n"
             << indent << "        EncodePathSegment{"
-            << "EncodePathSegmentKind::field, \"" << field.json.name
-            << "\", 0});\n"
+            << "EncodePathSegmentKind::field, std::string{"
+            << cpp_string_view_expression(field.json.name) << "}, 0});\n"
             << indent << "    return false;\n"
             << indent << "}\n";
         return;
