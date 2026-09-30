@@ -109,9 +109,9 @@ void generate_enum_field_encode(std::ostringstream& out,
     // 2. Generate the unmapped-value error.
     out << indent << (first ? "{\n" : "else {\n") << indent
         << "    error.code = EncodeErrorCode::invalid_enum_value;\n"
-        << indent
-        << "    error.path = {{EncodePathSegmentKind::field, \"" +
-               field.json.name + "\", 0}};\n"
+        << indent << "    error.path = {{EncodePathSegmentKind::field, "
+        << "std::string{" << cpp_string_view_expression(field.json.name)
+        << "}, 0}};\n"
         << indent << "    error.runtime_error = ::simdjson::SUCCESS;\n"
         << indent << "    return false;\n"
         << indent << "}\n";
