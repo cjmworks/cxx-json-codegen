@@ -916,62 +916,181 @@ TEST_CASE("capability.scalar", "[simdjson][encoder]") {
 TEST_CASE("capability.long_double", "[simdjson][encoder]") {
     using namespace cjm::metadata;
 
+    const FieldType number{FieldTypeKind::FloatingPoint, "long double",
+                           "long double"};
     const struct {
         const char* name;
-        bool ignored;
-        bool success;
+        FieldType type;
     } cases[] = {
-        {"participating", false, false},
-        {"ignored", true, true},
+        {"scalar", number},
+        {"optional",
+         {FieldTypeKind::Optional,
+          "std::optional<long double>",
+          "std::optional",
+          {number}}},
+        {"vector",
+         {FieldTypeKind::Vector,
+          "std::vector<long double>",
+          "std::vector",
+          {number}}},
+        {"array",
+         {FieldTypeKind::Array,
+          "std::array<long double, 2>",
+          "std::array",
+          {number},
+          2}},
+        {"map",
+         {FieldTypeKind::Map,
+          "std::map<std::string, long double>",
+          "std::map",
+          {{FieldTypeKind::String, "std::string", "std::string"}, number}}},
     };
 
     for (const auto& item : cases) {
-        DYNAMIC_SECTION(item.name) {
-            FieldModel extended;
-            extended.name = "ratio";
-            extended.json.name = "amount";
-            extended.json.ignored = item.ignored;
-            extended.type = FieldType{FieldTypeKind::FloatingPoint,
-                                      "long double", "long double"};
+        for (const bool ignored : {false, true}) {
+            DYNAMIC_SECTION(item.name
+                            << (ignored ? ".ignored" : ".participating")) {
+                FieldModel extended;
+                extended.name = "ratio";
+                extended.json.name = "amount";
+                extended.json.ignored = ignored;
+                extended.type = item.type;
 
-            FieldModel count;
-            count.name = "count";
-            count.json.name = "count";
-            count.type = FieldType{FieldTypeKind::SignedInteger, "int", "int"};
+                FieldModel count;
+                count.name = "count";
+                count.json.name = "count";
+                count.type =
+                    FieldType{FieldTypeKind::SignedInteger, "int", "int"};
 
-            TypeModel model;
-            model.name = "ExtendedValues";
-            model.qualified_name = "app::ExtendedValues";
-            model.fields = {extended, count};
-            ProjectModel project;
-            project.types = {model};
+                TypeModel model;
+                model.name = "ExtendedValues";
+                model.qualified_name = "app::ExtendedValues";
+                model.fields = {extended, count};
+                ProjectModel project;
+                project.types = {model};
 
-            const auto result =
-                cjm::generator::simdjson::generate_header(project);
-            INFO(result.error);
-            REQUIRE(result.success == item.success);
+                const auto result =
+                    cjm::generator::simdjson::generate_header(project);
+                INFO(result.error);
+                REQUIRE(result.success == ignored);
 
-            if (!item.success) {
-                REQUIRE(result.header.empty());
-                REQUIRE(result.error.find("unsupported capability") !=
+                if (!ignored) {
+                    REQUIRE(result.header.empty());
+                    REQUIRE(result.error.find("unsupported capability") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("model 'app::ExtendedValues'") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("field 'ratio'") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("json field 'amount'") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("C++ type '" +
+                                              item.type.spelling + "'") !=
+                            std::string::npos);
+                } else {
+                    REQUIRE(result.error.empty());
+                    REQUIRE(result.header.find(
+                                "from_json<::app::ExtendedValues>") !=
+                            std::string::npos);
+                    REQUIRE(
+                        result.header.find("to_json<::app::ExtendedValues>") !=
                         std::string::npos);
-                REQUIRE(result.error.find("model 'app::ExtendedValues'") !=
+                    REQUIRE(
+                        result.header.find("builder.append(value.count);") !=
                         std::string::npos);
-                REQUIRE(result.error.find("field 'ratio'") != std::string::npos);
-                REQUIRE(result.error.find("json field 'amount'") !=
+                    REQUIRE(result.header.find("value.ratio") ==
+                            std::string::npos);
+                    REQUIRE(result.header.find("\"amount\"") ==
+                            std::string::npos);
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE("capability.nested_long_double", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    for (const bool optional : {false, true}) {
+        for (const bool ignored : {false, true}) {
+            DYNAMIC_SECTION(
+                (optional ? "optional_child" : "required_child")
+                << (ignored ? ".ignored_leaf" : ".participating_leaf")) {
+                FieldModel ratio;
+                ratio.name = "ratio";
+                ratio.json.name = "amount";
+                ratio.json.ignored = ignored;
+                ratio.type = {FieldTypeKind::FloatingPoint, "long double",
+                              "long double"};
+
+                FieldModel count;
+                count.name = "count";
+                count.json.name = "count";
+                count.type = {FieldTypeKind::SignedInteger, "int", "int"};
+
+                TypeModel child;
+                child.name = "Metrics";
+                child.qualified_name = "app::Metrics";
+                child.fields = {ratio, count};
+
+                FieldModel metrics;
+                metrics.name = "metrics";
+                metrics.json.name = "stats";
+                metrics.type = {FieldTypeKind::UserDefined, "app::Metrics",
+                                "app::Metrics"};
+                if (optional) {
+                    const auto inner = metrics.type;
+                    metrics.type = {FieldTypeKind::Optional,
+                                    "std::optional<app::Metrics>",
+                                    "std::optional",
+                                    {inner}};
+                }
+
+                TypeModel parent;
+                parent.name = "Report";
+                parent.qualified_name = "app::Report";
+                parent.fields = {metrics};
+                ProjectModel project;
+                project.types = {child, parent};
+
+                const auto result =
+                    cjm::generator::simdjson::generate_header(project);
+                INFO(result.error);
+                REQUIRE(result.success == ignored);
+                if (!ignored) {
+                    REQUIRE(result.header.empty());
+                    REQUIRE(result.error.find("unsupported capability") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("model 'app::Metrics'") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("field 'ratio'") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("json field 'amount'") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("C++ type 'long double'") !=
+                            std::string::npos);
+                    REQUIRE(result.error.find("model 'app::Report'") ==
+                            std::string::npos);
+                } else {
+                    REQUIRE(result.error.empty());
+                    REQUIRE(result.header.find("from_json<::app::Metrics>") !=
+                            std::string::npos);
+                    REQUIRE(result.header.find("to_json<::app::Metrics>") !=
+                            std::string::npos);
+                    REQUIRE(result.header.find("from_json<::app::Report>") !=
+                            std::string::npos);
+                    REQUIRE(result.header.find("to_json<::app::Report>") !=
+                            std::string::npos);
+                    REQUIRE(
+                        result.header.find("builder.append(value.count);") !=
                         std::string::npos);
-                REQUIRE(result.error.find("C++ type 'long double'") !=
-                        std::string::npos);
-            } else {
-                REQUIRE(result.error.empty());
-                REQUIRE(result.header.find("from_json<::app::ExtendedValues>") !=
-                        std::string::npos);
-                REQUIRE(result.header.find("to_json<::app::ExtendedValues>") !=
-                        std::string::npos);
-                REQUIRE(result.header.find("builder.append(value.count);") !=
-                        std::string::npos);
-                REQUIRE(result.header.find("value.ratio") == std::string::npos);
-                REQUIRE(result.header.find("\"amount\"") == std::string::npos);
+                    REQUIRE(result.header.find("encode_object(builder, ") !=
+                            std::string::npos);
+                    REQUIRE(result.header.find("value.ratio") ==
+                            std::string::npos);
+                    REQUIRE(result.header.find("\"amount\"") ==
+                            std::string::npos);
+                }
             }
         }
     }
