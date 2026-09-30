@@ -129,3 +129,21 @@ TEST_CASE("string.utf8", "[simdjson][builder]") {
         }
     }
 }
+
+TEST_CASE("key.nul", "[simdjson][builder]") {
+    const std::string_view key{"A\000B", 3};
+    REQUIRE(key.size() == 3);
+    REQUIRE(key[1] == '\0');
+    REQUIRE(::simdjson::validate_utf8(key));
+
+    ::simdjson::builder::string_builder builder;
+    builder.start_object();
+    builder.escape_and_append_with_quotes(key);
+    builder.append_colon();
+    builder.append(true);
+    builder.end_object();
+
+    std::string_view output;
+    REQUIRE(builder.view().get(output) == ::simdjson::SUCCESS);
+    REQUIRE(output == R"({"A\u0000B":true})");
+}
