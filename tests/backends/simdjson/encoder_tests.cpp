@@ -1221,3 +1221,40 @@ TEST_CASE("object.parent_key", "[simdjson][encoder]") {
     }
     REQUIRE(actual == expected);
 }
+
+TEST_CASE("object.error_key", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+    const struct {
+        const char* name;
+        FieldTypeKind kind;
+        const char* error;
+    } cases[] = {
+        {"floating", FieldTypeKind::FloatingPoint, "non_finite_number"},
+        {"string", FieldTypeKind::String, "invalid_utf8_string"},
+    };
+
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            FieldModel field;
+            field.name = "value";
+            field.json.name = std::string{"A\0B", 3};
+            field.type.kind = item.kind;
+
+            TypeModel type;
+            type.name = "Values";
+            type.fields = {field};
+
+            std::ostringstream out;
+            cjm::generator::simdjson::detail::
+                generate_scalar_object_encode_function(out, type, {});
+            const std::string expected =
+                "        error.code = EncodeErrorCode::" +
+                std::string(item.error) + ";\n" +
+                R"(        error.path = {{EncodePathSegmentKind::field, std::string{std::string_view{"A\000B", 3}}, 0}};)";
+
+            const auto code = out.str();
+            INFO(code);
+            REQUIRE(code.find(expected) != std::string::npos);
+        }
+    }
+}
