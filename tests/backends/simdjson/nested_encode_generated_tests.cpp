@@ -5,6 +5,113 @@
 #include "tests/fixtures/simdjson_nested_encode.hpp"
 #include "cjm/simdjson/simdjson_nested_encode.cjm.hpp"
 
+TEST_CASE("key.round_trip", "[simdjson][encoder][decoder]") {
+    const app::KeyNames value{"Ada", "Paris", "Lin", "ignored"};
+    cjm::simdjson::EncodeError error;
+    const auto json = cjm::simdjson::to_json(value, error);
+    REQUIRE(json.has_value());
+    REQUIRE(*json ==
+            u8R"({"display\"name":"Ada","path\\name":"Paris","姓名":"Lin"})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+
+    cjm::simdjson::DecodeError decode_error;
+    const auto decoded =
+        cjm::simdjson::from_json<app::KeyNames>(*json, decode_error);
+    REQUIRE(decoded.has_value());
+    REQUIRE(decoded->quoted == value.quoted);
+    REQUIRE(decoded->slashed == value.slashed);
+    REQUIRE(decoded->unicode == value.unicode);
+    REQUIRE(decoded->ignored.empty());
+}
+
+TEST_CASE("key.omitted", "[simdjson][encoder]") {
+    const app::KeyNames value{"Ada", std::nullopt, "Lin",
+                              std::string{"\xC3\x28", 2}};
+    cjm::simdjson::EncodeError error;
+    const auto json = cjm::simdjson::to_json(value, error);
+    REQUIRE(json.has_value());
+    REQUIRE(*json == u8R"({"display\"name":"Ada","姓名":"Lin"})");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+}
+
+TEST_CASE("key.value_error", "[simdjson][encoder]") {
+    const struct {
+        const char* name;
+        bool optional;
+        std::string expected;
+    } cases[] = {
+        {"quote", false, "display\"name"},
+        {"backslash", true, R"(path\name)"},
+    };
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            app::KeyNames value{"Ada", "Paris", "Lin", ""};
+            const std::string invalid{"\xC3\x28", 2};
+            if (item.optional)
+                value.slashed = invalid;
+            else
+                value.quoted = invalid;
+            cjm::simdjson::EncodeError error;
+            REQUIRE_FALSE(cjm::simdjson::to_json(value, error).has_value());
+            REQUIRE(error.code ==
+                    cjm::simdjson::EncodeErrorCode::invalid_utf8_string);
+            REQUIRE(error.runtime_error == ::simdjson::UTF8_ERROR);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].kind ==
+                    cjm::simdjson::EncodePathSegmentKind::field);
+            REQUIRE(error.path[0].field_name == item.expected);
+        }
+    }
+}
+
+TEST_CASE("key.parent_error", "[simdjson][encoder]") {
+    const app::KeyParent value{
+        {std::string{"\xC3\x28", 2}, std::nullopt, "Lin", ""}};
+    cjm::simdjson::EncodeError error;
+    REQUIRE_FALSE(cjm::simdjson::to_json(value, error).has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::invalid_utf8_string);
+    REQUIRE(error.path.size() == 2);
+    REQUIRE(error.path[0].field_name == R"(home\address)");
+    REQUIRE(error.path[1].field_name == "display\"name");
+}
+
+TEST_CASE("key.decode_error", "[simdjson][decoder]") {
+    const struct {
+        const char* name;
+        std::string_view json;
+        cjm::simdjson::DecodeErrorCode code;
+    } cases[] = {
+        {"missing", "{}",
+         cjm::simdjson::DecodeErrorCode::missing_required_field},
+        {"wrong_type", R"({"display\"name":42})",
+         cjm::simdjson::DecodeErrorCode::expected_string},
+    };
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            cjm::simdjson::DecodeError error;
+            REQUIRE_FALSE(
+                cjm::simdjson::from_json<app::KeyNames>(item.json, error)
+                    .has_value());
+            REQUIRE(error.code == item.code);
+            REQUIRE(error.path.size() == 1);
+            REQUIRE(error.path[0].field_name == "display\"name");
+        }
+    }
+}
+
+TEST_CASE("key.parent_decode_error", "[simdjson][decoder]") {
+    cjm::simdjson::DecodeError error;
+    const auto value = cjm::simdjson::from_json<app::KeyParent>(
+        R"({"home\\address":{"display\"name":42}})", error);
+    REQUIRE_FALSE(value.has_value());
+    REQUIRE(error.code == cjm::simdjson::DecodeErrorCode::expected_string);
+    REQUIRE(error.path.size() == 2);
+    REQUIRE(error.path[0].field_name == R"(home\address)");
+    REQUIRE(error.path[1].field_name == "display\"name");
+}
+
 TEST_CASE("object.round_trip", "[simdjson][encoder][decoder]") {
     const app::User value{{"Paris"}};
     cjm::simdjson::EncodeError encode_error;

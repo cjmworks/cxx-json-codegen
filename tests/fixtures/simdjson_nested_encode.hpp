@@ -35,4 +35,15 @@ struct OptionalObjectValues {
     std::optional<OmittedAddress> nullable;
 };
 
+struct KeyNames {
+    std::string quoted; // json:"display"name"
+    std::optional<std::string> slashed; // json:"path\name,omitempty"
+    std::string unicode; // json:"姓名"
+    std::string ignored; // json:"-"
+};
+
+struct KeyParent {
+    KeyNames child; // json:"home\address"
+};
+
 } // namespace app

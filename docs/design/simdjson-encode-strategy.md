@@ -10,7 +10,7 @@ using the same root builder. The broader #212/#213 encoder scope and
 Parent contract: [simdjson Experimental Backend MVP](simdjson-experimental-backend-mvp.md),
 epic #203. Evidence recorded on 2026-09-08 against simdjson v4.6.4.
 
-Implementation status updated on 2026-09-25. See the
+Implementation status updated on 2026-09-29. See the
 [encode runtime policy](runtime-json-semantic-profile.md#experimental-simdjson-encode-policy)
 for current scope, optional omission/null behavior, finite-value and UTF-8 checks, enum mapping, escaping coverage,
 and the meaning of success-after-failure recovery. The complete contract below includes planned
@@ -174,6 +174,36 @@ never pass through `append_raw()`. Pass explicit string lengths so embedded NUL
 bytes are preserved and escaped.
 
 ## Ownership And Failure Boundaries
+
+### Object Field Names And v1.0 Annotation Scope
+
+Emitted object names use byte-preserving C++ string literals and explicit
+lengths when passed to the official builder. Validate emitted names with
+`simdjson::validate_utf8` before escaping; report `invalid_utf8_key` with an
+owned copy of the offending name. Ignored fields and disengaged optional
+fields with `omitempty` do not reach name validation. Value failures and
+nested encode failures also preserve the raw field name in their paths.
+
+For v1.0, CJM `json:"..."` comments do **not** decode escape sequences.
+For example, `json:"path\name"` contains a literal backslash followed by `n`,
+not a newline. Unicode can be written directly in UTF-8 source. Existing
+outer-quote, comma-option, trimming, and ignore-marker rules are unchanged;
+this is not a promise that every arbitrary byte sequence is representable
+through source comments. Annotation escape syntax is outside v1.0 scope.
+
+The decoder uses the same C++ literal escaping for static field matching and
+field error paths, so quotes and literal backslashes are not interpreted as
+C++ source syntax. This does not add annotation unescaping or promise a
+NUL-bearing field-name round trip through the source frontend and decoder.
+
+Generated C++17 runtime tests cover quote/backslash/Unicode names, successful
+round trips, optional omission, ignored invalid string values, and raw names
+in value/nested encode errors and decode errors. Existing generator tests
+cover byte-preserving NUL names and the invalid-key guard; the builder smoke
+test covers NUL escaping. These are distinct evidence levels: no dedicated
+NUL or malformed-key generated runtime pipeline is added in this slice.
+
+### Buffer Ownership
 
 The builder owns its buffer. `view()` borrows it; destruction, reuse, or
 reallocation can invalidate that view. The owning root result must be copied
