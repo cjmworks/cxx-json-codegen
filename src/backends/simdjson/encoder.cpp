@@ -248,8 +248,9 @@ void generate_scalar_object_encode_function(
         if (field.type.kind == metadata::FieldTypeKind::FloatingPoint) {
             out << "    if (!std::isfinite(value." + field.name + ")) {\n"
                 << "        error.code = EncodeErrorCode::non_finite_number;\n"
-                << "        error.path = {{EncodePathSegmentKind::field, \"" +
-                       field.json.name + "\", 0}};\n"
+                << "        error.path = {{EncodePathSegmentKind::field, "
+                << "std::string{" << cpp_string_view_expression(field.json.name)
+                << "}, 0}};\n"
                 << "        error.runtime_error = ::simdjson::SUCCESS;\n"
                 << "        return false;\n"
                 << "    }\n";
@@ -259,8 +260,9 @@ void generate_scalar_object_encode_function(
                        ")) {\n"
                 << "        error.code = "
                    "EncodeErrorCode::invalid_utf8_string;\n"
-                << "        error.path = {{EncodePathSegmentKind::field, \"" +
-                       field.json.name + "\", 0}};\n"
+                << "        error.path = {{EncodePathSegmentKind::field, "
+                << "std::string{" << cpp_string_view_expression(field.json.name)
+                << "}, 0}};\n"
                 << "        error.runtime_error = ::simdjson::UTF8_ERROR;\n"
                 << "        return false;\n"
                 << "    }\n";
