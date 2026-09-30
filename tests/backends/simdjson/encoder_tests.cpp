@@ -1134,7 +1134,7 @@ TEST_CASE("key.omission_guard", "[simdjson][encoder]") {
     REQUIRE(code.find(expected) != std::string::npos);
 }
 
-TEST_CASE("object.error_key", "[simdjson][encoder]") {
+TEST_CASE("value.error_key", "[simdjson][encoder]") {
     using namespace cjm::metadata;
     const struct {
         const char* name;
@@ -1151,13 +1151,10 @@ TEST_CASE("object.error_key", "[simdjson][encoder]") {
             field.name = "value";
             field.json.name = std::string{"A\0B", 3};
             field.type.kind = item.kind;
-            TypeModel type;
-            type.name = "Values";
-            type.fields = {field};
 
             std::ostringstream out;
-            cjm::generator::simdjson::detail::
-                generate_scalar_object_encode_function(out, type, {});
+            cjm::generator::simdjson::detail::generate_value_encode(
+                out, field, field.type, "value.type", {}, 1);
             const std::string expected =
                 "        error.code = EncodeErrorCode::" +
                 std::string(item.error) + ";\n" +

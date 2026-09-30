@@ -137,8 +137,9 @@ void generate_value_encode(std::ostringstream& out,
         out << indent << "if (!std::isfinite(" << value_expression << ")) {\n"
             << indent
             << "    error.code = EncodeErrorCode::non_finite_number;\n"
-            << indent << "    error.path = {{EncodePathSegmentKind::field, \""
-            << field.json.name << "\", 0}};\n"
+            << indent << "    error.path = {{EncodePathSegmentKind::field, "
+            << "std::string{" << cpp_string_view_expression(field.json.name)
+            << "}, 0}};\n"
             << indent << "    error.runtime_error = ::simdjson::SUCCESS;\n"
             << indent << "    return false;\n"
             << indent << "}\n"
@@ -150,8 +151,9 @@ void generate_value_encode(std::ostringstream& out,
             << indent << "    "
             << "error.code = EncodeErrorCode::invalid_utf8_string;\n"
             << indent << "    "
-            << "error.path = {{EncodePathSegmentKind::field, \"" +
-                   field.json.name + "\", 0}};\n"
+            << "error.path = {{EncodePathSegmentKind::field, "
+            << "std::string{" << cpp_string_view_expression(field.json.name)
+            << +"}, 0}};\n"
             << indent << "    "
             << "error.runtime_error = ::simdjson::UTF8_ERROR;\n"
             << indent << "    " << "return false;\n"
@@ -247,7 +249,8 @@ void generate_scalar_object_encode_function(
 
         if (field.type.kind == metadata::FieldTypeKind::FloatingPoint) {
             out << "    if (!std::isfinite(value." + field.name + ")) {\n"
-                << "        error.code = EncodeErrorCode::non_finite_number;\n"
+                << "        error.code = "
+                   "EncodeErrorCode::non_finite_number;\n"
                 << "        error.path = {{EncodePathSegmentKind::field, "
                 << "std::string{" << cpp_string_view_expression(field.json.name)
                 << "}, 0}};\n"
