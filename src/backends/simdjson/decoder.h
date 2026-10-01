@@ -7,7 +7,7 @@
 
 namespace cjm::generator::simdjson::detail {
 // Return the first unsupported-field diagnostic, or an empty string.
-std::string validate_project(const metadata::ProjectModel& project);
+std::string validate_decode_project(const metadata::ProjectModel& project);
 
 // Generate the experimental decode error and structured path types.
 void generate_decode_error_model(std::ostringstream& out);

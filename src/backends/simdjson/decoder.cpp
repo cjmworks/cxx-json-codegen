@@ -683,7 +683,8 @@ void generate_scalar_value_decode(std::ostringstream& out,
 void generate_scalar_field_decode(
     std::ostringstream& out, const metadata::FieldModel& field,
     const std::vector<metadata::EnumModel>& enums) {
-    write_line(out, 2, "if (key == " + cpp_string_literal(field.json.name) + ") {");
+    write_line(out, 2,
+               "if (key == " + cpp_string_literal(field.json.name) + ") {");
     generate_scalar_value_decode(out, field, field.type, enums, "field.value()",
                                  "value." + field.name, 3,
                                  GeneratedValuePath{});
@@ -997,7 +998,8 @@ void generate_map_field_decode(std::ostringstream& out,
                                const metadata::FieldModel& field,
                                const std::vector<metadata::EnumModel>& enums) {
     const std::string member_name = "value." + field.name;
-    write_line(out, 2, "if (key == " + cpp_string_literal(field.json.name) + ") {");
+    write_line(out, 2,
+               "if (key == " + cpp_string_literal(field.json.name) + ") {");
 
     if (field.type.arguments[1].kind == metadata::FieldTypeKind::UserDefined) {
         generate_map_user_defined_value_decode(out, field, field.type,
@@ -1153,7 +1155,8 @@ void generate_optional_field_decode(
                             ? "_vector"
                             : "_value");
 
-    write_line(out, 2, "if (key == " + cpp_string_literal(field.json.name) + ") {");
+    write_line(out, 2,
+               "if (key == " + cpp_string_literal(field.json.name) + ") {");
     write_line(out, 3, "value." + field.name + " = std::nullopt;");
     write_line(out, 3, "if (field.value().is_null()) {");
     write_line(out, 4, "continue;");
@@ -1186,7 +1189,8 @@ void generate_vector_scalar_field_decode(
     const std::vector<metadata::EnumModel>& enums) {
     const std::string member_name = "value." + field.name;
 
-    write_line(out, 2, "if (key == " + cpp_string_literal(field.json.name) + ") {");
+    write_line(out, 2,
+               "if (key == " + cpp_string_literal(field.json.name) + ") {");
 
     generate_vector_scalar_value_decode(out, field, field.type, enums,
                                         "field.value()", member_name, 3,
@@ -1201,7 +1205,8 @@ void generate_vector_scalar_field_decode(
 void generate_vector_user_defined_field_decode(
     std::ostringstream& out, const metadata::FieldModel& field) {
     const std::string member_name = "value." + field.name;
-    write_line(out, 2, "if (key == " + cpp_string_literal(field.json.name) + ") {");
+    write_line(out, 2,
+               "if (key == " + cpp_string_literal(field.json.name) + ") {");
     generate_vector_user_defined_value_decode(out, field, field.type,
                                               "field.value()", member_name, 3,
                                               GeneratedValuePath{});
@@ -1217,7 +1222,8 @@ void generate_array_scalar_field_decode(
     const GeneratedValuePath& path) {
     const std::string member_name = "value." + field.name;
 
-    write_line(out, 2, "if (key == " + cpp_string_literal(field.json.name) + ") {");
+    write_line(out, 2,
+               "if (key == " + cpp_string_literal(field.json.name) + ") {");
     generate_array_scalar_value_decode(out, field, field.type, enums,
                                        "field.value()", member_name, 3, path);
     write_line(out, 3, "has_" + field.name + " = true;");
@@ -1229,7 +1235,8 @@ void generate_array_scalar_field_decode(
 void generate_array_user_defined_field_decode(
     std::ostringstream& out, const metadata::FieldModel& field) {
     const std::string member_name = "value." + field.name;
-    write_line(out, 2, "if (key == " + cpp_string_literal(field.json.name) + ") {");
+    write_line(out, 2,
+               "if (key == " + cpp_string_literal(field.json.name) + ") {");
     generate_array_user_defined_value_decode(out, field, field.type,
                                              "field.value()", member_name, 3,
                                              GeneratedValuePath{});
@@ -1242,7 +1249,8 @@ void generate_array_user_defined_field_decode(
 void generate_user_defined_field_decode(std::ostringstream& out,
                                         const metadata::FieldModel& field) {
 
-    write_line(out, 2, "if (key == " + cpp_string_literal(field.json.name) + ") {");
+    write_line(out, 2,
+               "if (key == " + cpp_string_literal(field.json.name) + ") {");
     generate_user_defined_value_decode(out, field, "field.value()",
                                        "value." + field.name, 3,
                                        GeneratedValuePath{});
@@ -1296,7 +1304,7 @@ void generate_field_decode(std::ostringstream& out,
 } // namespace
 
 // Return the first unsupported-field diagnostic, or an empty string.
-std::string validate_project(const metadata::ProjectModel& project) {
+std::string validate_decode_project(const metadata::ProjectModel& project) {
     for (const auto& type : project.types) {
         for (const auto& field : type.fields) {
             const auto unsupported =
