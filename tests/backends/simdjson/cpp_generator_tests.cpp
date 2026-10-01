@@ -699,7 +699,8 @@ int main() {
             read_file("tests/golden/simdjson_bool.expected.cjm.hpp");
         if (bool_result.header != expected) {
             std::cerr << "generated simdjson header: \n"
-                      << cjm::test::format_golden_mismatch(expected, bool_result.header);
+                      << cjm::test::format_golden_mismatch(expected,
+                                                           bool_result.header);
         }
         assert(bool_result.header == expected);
 
@@ -832,7 +833,8 @@ int main() {
             read_file("tests/golden/simdjson_optional_vector.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson optional-vector header:\n"
-                      << cjm::test::format_golden_mismatch(expected, result.header);
+                      << cjm::test::format_golden_mismatch(expected,
+                                                           result.header);
         }
         assert(result.header == expected);
     }
@@ -844,7 +846,7 @@ int main() {
                                     "long double")));
         expect_unsupported_capability(
             result, "FloatingPointValues", "ratio", "ratio", "long double",
-            "floating-point decode only supports float and double");
+            "simdjson encoding does not support long double without narrowing");
     }
     {
         const auto result =
@@ -886,7 +888,8 @@ int main() {
             read_file("tests/golden/simdjson_enum.expected.cjm.hpp");
         if (result.header != enum_expected) {
             std::cerr << "generated simdjson enum header:\n"
-                      << cjm::test::format_golden_mismatch(enum_expected, result.header);
+                      << cjm::test::format_golden_mismatch(enum_expected,
+                                                           result.header);
         }
         assert(result.header == enum_expected);
     }
@@ -938,7 +941,8 @@ int main() {
             read_file("tests/golden/simdjson_map.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson map header:\n"
-                      << cjm::test::format_golden_mismatch(expected, result.header);
+                      << cjm::test::format_golden_mismatch(expected,
+                                                           result.header);
         }
         assert(result.header == expected);
     }
@@ -967,7 +971,8 @@ int main() {
             "tests/golden/simdjson_map_user_defined.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson map-of-model header:\n"
-                      << cjm::test::format_golden_mismatch(expected, result.header);
+                      << cjm::test::format_golden_mismatch(expected,
+                                                           result.header);
         }
         assert(result.header == expected);
     }
@@ -996,7 +1001,8 @@ int main() {
             read_file("tests/golden/simdjson_map_vector.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson map-of-vector header:\n"
-                      << cjm::test::format_golden_mismatch(expected, result.header);
+                      << cjm::test::format_golden_mismatch(expected,
+                                                           result.header);
         }
         assert(result.header == expected);
     }
@@ -1028,7 +1034,8 @@ int main() {
                       "simdjson_map_vector_user_defined.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson map-of-model-vector header:\n"
-                      << cjm::test::format_golden_mismatch(expected, result.header);
+                      << cjm::test::format_golden_mismatch(expected,
+                                                           result.header);
         }
         assert(result.header == expected);
     }
@@ -1211,8 +1218,8 @@ int main() {
             read_file("tests/golden/simdjson_nested.expected.cjm.hpp");
         if (result.header != nested_expected) {
             std::cerr << "generated simdjson nested header:\n"
-                      << cjm::test::format_golden_mismatch(
-                             nested_expected, result.header);
+                      << cjm::test::format_golden_mismatch(nested_expected,
+                                                           result.header);
         }
         assert(result.header == nested_expected);
     }
@@ -1239,7 +1246,8 @@ int main() {
             "tests/golden/simdjson_vector_user_defined.expected.cjm.hpp");
         if (result.header != expected) {
             std::cerr << "generated simdjson vector-of-model header:\n"
-                      << cjm::test::format_golden_mismatch(expected, result.header);
+                      << cjm::test::format_golden_mismatch(expected,
+                                                           result.header);
         }
         assert(result.header == expected);
     }

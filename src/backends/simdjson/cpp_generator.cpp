@@ -7,6 +7,11 @@
 namespace cjm::generator::simdjson {
 
 GenerationResult generate_header(const metadata::ProjectModel& project) {
+    const auto encode_error = detail::validate_encode_project(project);
+    if (!encode_error.empty()) {
+        return GenerationResult{false, {}, encode_error};
+    }
+
     const auto error = detail::validate_project(project);
     if (!error.empty()) {
         return GenerationResult{false, {}, error};
