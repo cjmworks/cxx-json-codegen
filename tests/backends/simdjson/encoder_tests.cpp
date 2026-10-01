@@ -969,6 +969,18 @@ TEST_CASE("capability.long_double", "[simdjson][encoder]") {
                 ProjectModel project;
                 project.types = {model};
 
+                const auto encode_error =
+                    cjm::generator::simdjson::detail::validate_encode_project(
+                        project);
+                INFO(encode_error);
+                REQUIRE(encode_error.empty() == ignored);
+                if (!ignored) {
+                    REQUIRE(encode_error.find("encoding") != std::string::npos);
+                    REQUIRE(encode_error.find("long double") !=
+                            std::string::npos);
+                    REQUIRE(encode_error.find(item.type.spelling) !=
+                            std::string::npos);
+                }
                 const auto result =
                     cjm::generator::simdjson::generate_header(project);
                 INFO(result.error);
@@ -1471,4 +1483,23 @@ TEST_CASE("validate_encode.long_double", "[simdjson][encoder]") {
          }) {
         REQUIRE(error.find(fragment) != std::string::npos);
     }
+}
+
+TEST_CASE("validate_encode.allowed_type", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "values";
+    field.json.name = "values";
+    field.type = {FieldTypeKind::Vector,
+                  "std::vector<double>",
+                  "std::vector",
+                  {{FieldTypeKind::FloatingPoint, "double", "double"}}};
+    TypeModel model;
+    model.name = "Values";
+    model.fields = {field};
+    ProjectModel project;
+    project.types = {model};
+    REQUIRE(cjm::generator::simdjson::detail::validate_encode_project(project)
+                .empty());
 }
