@@ -1441,3 +1441,34 @@ TEST_CASE("object.error_key", "[simdjson][encoder]") {
         }
     }
 }
+
+TEST_CASE("validate_encode.long_double", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "ratio";
+    field.json.name = "amount";
+    field.type = {FieldTypeKind::FloatingPoint, "long double", "long double"};
+
+    TypeModel model;
+    model.name = "Metrics";
+    model.qualified_name = "app::Metrics";
+    model.fields = {field};
+
+    ProjectModel project;
+    project.types = {model};
+
+    const auto error =
+        cjm::generator::simdjson::detail::validate_encode_project(project);
+    INFO(error);
+    for (const auto* fragment : {
+             "model 'app::Metrics'",
+             "field 'ratio'",
+             "json field 'amount'",
+             "C++ type 'long double'",
+             "encoding",
+             "narrowing",
+         }) {
+        REQUIRE(error.find(fragment) != std::string::npos);
+    }
+}

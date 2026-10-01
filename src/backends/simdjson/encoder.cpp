@@ -6,6 +6,49 @@
 #include <string>
 
 namespace cjm::generator::simdjson::detail {
+// Check whether a type or its arguments contain long double.
+bool contains_long_double(const metadata::FieldType& type) {
+    const auto& name =
+        type.qualified_name.empty() ? type.spelling : type.qualified_name;
+    if (type.kind == metadata::FieldTypeKind::FloatingPoint &&
+        name == "long double") {
+        return true;
+    }
+
+    for (const auto& argument : type.arguments) {
+        if (contains_long_double(argument)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string validate_encode_project(const metadata::ProjectModel& project) {
+    // 1. Inspect participating fields in model order.
+    for (const auto& model : project.types) {
+        for (const auto& field : model.fields) {
+            if (field.json.ignored || !contains_long_double(field.type)) {
+                continue;
+            }
+
+            // 2. Report the first prohibited mapping.
+            const auto& model_name = model.qualified_name.empty()
+                                         ? model.name
+                                         : model.qualified_name;
+            const auto& type_name = field.type.spelling.empty()
+                                        ? field.type.qualified_name
+                                        : field.type.spelling;
+            return "simdjson backend unsupported capability: model '" +
+                   model_name + "', field '" + field.name + "', json field '" +
+                   field.json.name + "', C++ type '" + type_name +
+                   "': simdjson encoding does not support long double without "
+                   "narrowing";
+        }
+    }
+
+    // 3. No prohibited mapping was found.
+    return {};
+}
 
 bool is_supported_scalar_encode_type(const metadata::FieldType& type) {
     switch (type.kind) {

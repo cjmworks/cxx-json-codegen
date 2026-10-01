@@ -10,6 +10,9 @@
 
 namespace cjm::generator::simdjson::detail {
 
+// Return the first prohibited encode-mapping diagnostic, or an empty string.
+std::string validate_encode_project(const metadata::ProjectModel& project);
+
 // Check whether a scalar type has a supported encode mapping.
 bool is_supported_scalar_encode_type(const metadata::FieldType& type);
 
