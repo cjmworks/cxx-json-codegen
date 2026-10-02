@@ -16,6 +16,11 @@ std::string validate_encode_project(const metadata::ProjectModel& project);
 // Check whether a scalar type has a supported encode mapping.
 bool is_supported_scalar_encode_type(const metadata::FieldType& type);
 
+// Return why a value cannot be encoded, or an empty string when supported.
+std::string
+unsupported_value_encode_reason(const metadata::FieldType& type,
+                                const std::set<std::string>& encoded_models);
+
 // Check whether a value can use the available encode mapping.
 bool is_supported_value_encode_type(
     const metadata::FieldType& type,

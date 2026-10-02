@@ -44,6 +44,7 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
     detail::generate_encode_error_model(header);
 
     std::set<std::string> encoded_models;
+    std::vector<std::string> warnings;
     for (const auto& type : project.types) {
         header << "\n";
         detail::generate_object_decode_function(header, type, project.enums);
@@ -55,8 +56,19 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
                 continue;
             }
 
-            if (!detail::is_supported_value_encode_type(field.type,
-                                                        encoded_models)) {
+            const auto reason = detail::unsupported_value_encode_reason(
+                field.type, encoded_models);
+            if (!reason.empty()) {
+                const auto& model_name = type.qualified_name.empty()
+                                             ? type.name
+                                             : type.qualified_name;
+                const auto& type_name = field.type.spelling.empty()
+                                            ? field.type.qualified_name
+                                            : field.type.spelling;
+                warnings.push_back(
+                    "model '" + model_name + "', field '" + field.name +
+                    "', json field '" + field.json.name + "', C++ type '" +
+                    type_name + "'; " + reason + "; generated decoder only");
                 can_encode = false;
                 break;
             }
@@ -72,7 +84,7 @@ GenerationResult generate_header(const metadata::ProjectModel& project) {
                 type.qualified_name.empty() ? type.name : type.qualified_name);
         }
     }
-    return GenerationResult{true, header.str(), {}};
+    return GenerationResult{true, header.str(), {}, warnings};
 }
 
 } // namespace cjm::generator::simdjson

@@ -66,26 +66,45 @@ bool is_supported_scalar_encode_type(const metadata::FieldType& type) {
     default:
         return false;
     }
-} // namespace cjm::generator::simdjson::detail
+}
+
+std::string
+unsupported_value_encode_reason(const metadata::FieldType& type,
+                                const std::set<std::string>& encoded_models) {
+    if (is_supported_scalar_encode_type(type)) {
+        return {};
+    }
+
+    if (type.kind == metadata::FieldTypeKind::Optional) {
+        if (type.arguments.size() != 1) {
+            return "optional requires exactly one type argument";
+        }
+        if (type.arguments[0].kind == metadata::FieldTypeKind::Optional) {
+            return "directly nested optional types are not supported";
+        }
+        return unsupported_value_encode_reason(type.arguments[0],
+                                               encoded_models);
+
+        is_supported_value_encode_type(type.arguments[0], encoded_models);
+    }
+
+    if (type.kind == metadata::FieldTypeKind::UserDefined) {
+        const auto& name =
+            type.qualified_name.empty() ? type.spelling : type.qualified_name;
+        if (encoded_models.count(name) != 0) {
+            return {};
+        }
+        return "nested model '" + name + "' has no available encoder";
+    }
+
+    return "this type has no implemented encoder";
+}
 
 bool is_supported_value_encode_type(
     const metadata::FieldType& type,
     const std::set<std::string>& encoded_models) {
-    if (is_supported_scalar_encode_type(type)) {
-        return true;
-    }
-    if (type.kind == metadata::FieldTypeKind::Optional) {
-        return type.arguments.size() == 1 &&
-               type.arguments[0].kind != metadata::FieldTypeKind::Optional &&
-               is_supported_value_encode_type(type.arguments[0],
-                                              encoded_models);
-    }
-    if (type.kind == metadata::FieldTypeKind::UserDefined) {
-        const auto& name =
-            type.qualified_name.empty() ? type.spelling : type.qualified_name;
-        return encoded_models.count(name) != 0;
-    }
-    return false;
+
+    return unsupported_value_encode_reason(type, encoded_models).empty();
 }
 
 // Generate the experimental encode error and public API declarations
