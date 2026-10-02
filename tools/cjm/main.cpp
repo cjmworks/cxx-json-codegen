@@ -129,6 +129,9 @@ bool generate_runtime_header(const GenerateOptions& options,
             std::cerr << "cjm: simdjson backend: " << result.error << "\n";
             return false;
         }
+        for (const auto& warning : result.warnings) {
+            std::cerr << "cjm: warning: simdjson backend: " << warning << "\n";
+        }
         generated = result.header;
         return true;
     }
