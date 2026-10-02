@@ -281,7 +281,14 @@ Unsupported backend diagnostics should include:
 - unsupported capability;
 - suggested supported shape when obvious.
 
-Decode diagnostics should preserve the portable error and path model:
+At generation time, incomplete encoder coverage may produce a successful
+decode-only header with non-fatal warnings rather than breaking existing
+decoder use. Warnings identify the first blocking field per model and are
+printed to stderr by the CLI; prohibited mappings such as participating
+`long double` remain fatal errors. See the
+[generation diagnostic contract](simdjson-encode-strategy.md#generation-errors-and-decode-only-warnings).
+
+Runtime decode diagnostics should preserve the portable error and path model:
 
 - portable code;
 - structured path;

@@ -988,6 +988,7 @@ TEST_CASE("capability.long_double", "[simdjson][encoder]") {
 
                 if (!ignored) {
                     REQUIRE(result.header.empty());
+                    REQUIRE(result.warnings.empty());
                     REQUIRE(result.error.find("unsupported capability") !=
                             std::string::npos);
                     REQUIRE(result.error.find("model 'app::ExtendedValues'") !=
@@ -1071,6 +1072,7 @@ TEST_CASE("capability.nested_long_double", "[simdjson][encoder]") {
                 REQUIRE(result.success == ignored);
                 if (!ignored) {
                     REQUIRE(result.header.empty());
+                    REQUIRE(result.warnings.empty());
                     REQUIRE(result.error.find("unsupported capability") !=
                             std::string::npos);
                     REQUIRE(result.error.find("model 'app::Metrics'") !=
@@ -1104,6 +1106,129 @@ TEST_CASE("capability.nested_long_double", "[simdjson][encoder]") {
                             std::string::npos);
                 }
             }
+        }
+    }
+}
+
+TEST_CASE("warning.models", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+    const struct {
+        const char* name;
+        bool container;
+        bool ignored;
+        bool warn;
+    } cases[] = {
+        {"supported", false, false, false},
+        {"decode_only", true, false, true},
+        {"ignored", true, true, false},
+    };
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            FieldModel field;
+            field.name = "scores";
+            field.json.name = "points";
+            field.json.ignored = item.ignored;
+            field.type = {FieldTypeKind::SignedInteger, "int", "int"};
+            if (item.container) {
+                const auto inner = field.type;
+                field.type = {FieldTypeKind::Vector,
+                              "std::vector<int>",
+                              "std::vector",
+                              {inner}};
+            }
+            FieldModel second = field;
+            second.name = "backup";
+            second.json.name = "backup";
+            TypeModel model;
+            model.name = "User";
+            model.qualified_name = "app::User";
+            model.fields = {field, second};
+            ProjectModel project;
+            project.types = {model};
+
+            const auto result =
+                cjm::generator::simdjson::generate_header(project);
+            INFO(result.error);
+            REQUIRE(result.success);
+            REQUIRE(result.error.empty());
+            REQUIRE(result.header.find("from_json<::app::User>") !=
+                    std::string::npos);
+            REQUIRE((result.header.find("to_json<::app::User>") ==
+                     std::string::npos) == item.warn);
+            if (item.warn) {
+                REQUIRE(result.warnings.size() == 1);
+                for (const auto* fragment :
+                     {"model 'app::User'", "field 'scores'",
+                      "json field 'points'", "C++ type 'std::vector<int>'",
+                      "this type has no implemented encoder",
+                      "generated decoder only"}) {
+                    REQUIRE(result.warnings[0].find(fragment) !=
+                            std::string::npos);
+                }
+                REQUIRE(result.warnings[0].find("backup") == std::string::npos);
+            } else {
+                REQUIRE(result.warnings.empty());
+            }
+            const auto again =
+                cjm::generator::simdjson::generate_header(project);
+            REQUIRE(again.warnings == result.warnings);
+            REQUIRE(again.header == result.header);
+        }
+    }
+}
+
+TEST_CASE("warning.reasons", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+    const FieldType integer{FieldTypeKind::SignedInteger, "int", "int"};
+    const FieldType vector{
+        FieldTypeKind::Vector, "std::vector<int>", "std::vector", {integer}};
+    const FieldType object{FieldTypeKind::UserDefined, "app::Child",
+                           "app::Child"};
+    const FieldType optional{FieldTypeKind::Optional,
+                             "std::optional<int>",
+                             "std::optional",
+                             {integer}};
+    const struct {
+        const char* name;
+        FieldType type;
+        std::set<std::string> available;
+        std::string expected;
+    } cases[] = {
+        {"scalar", integer, {}, ""},
+        {"optional", optional, {}, ""},
+        {"container", vector, {}, "this type has no implemented encoder"},
+        {"optional_container",
+         {FieldTypeKind::Optional,
+          "std::optional<std::vector<int>>",
+          "std::optional",
+          {vector}},
+         {},
+         "this type has no implemented encoder"},
+        {"missing_child",
+         object,
+         {},
+         "nested model 'app::Child' has no available encoder"},
+        {"available_child", object, {"app::Child"}, ""},
+        {"optional_shape",
+         {FieldTypeKind::Optional, "std::optional<int>", "std::optional"},
+         {},
+         "optional requires exactly one type argument"},
+        {"nested_optional",
+         {FieldTypeKind::Optional,
+          "std::optional<std::optional<int>>",
+          "std::optional",
+          {optional}},
+         {},
+         "directly nested optional types are not supported"},
+    };
+    for (const auto& item : cases) {
+        DYNAMIC_SECTION(item.name) {
+            const auto reason = cjm::generator::simdjson::detail::
+                unsupported_value_encode_reason(item.type, item.available);
+            REQUIRE(reason == item.expected);
+            REQUIRE(cjm::generator::simdjson::detail::
+                        is_supported_value_encode_type(
+                            item.type, item.available) == reason.empty());
         }
     }
 }
@@ -1188,6 +1313,22 @@ TEST_CASE("object.capability", "[simdjson][encoder]") {
                      std::string::npos) == item.expected);
             REQUIRE(result.header.find("from_json<::app::User>") !=
                     std::string::npos);
+            if (item.expected) {
+                REQUIRE(result.warnings.empty());
+            } else {
+                REQUIRE(result.warnings.size() == 2);
+                REQUIRE(result.warnings[0].find("model 'app::Address'") !=
+                        std::string::npos);
+                REQUIRE(result.warnings[0].find("field 'city'") !=
+                        std::string::npos);
+                REQUIRE(result.warnings[1].find("model 'app::User'") !=
+                        std::string::npos);
+                REQUIRE(result.warnings[1].find("json field 'home'") !=
+                        std::string::npos);
+                REQUIRE(result.warnings[1].find("nested model 'app::Address' "
+                                                "has no available encoder") !=
+                        std::string::npos);
+            }
         }
     }
 }

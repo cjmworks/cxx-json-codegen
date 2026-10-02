@@ -20,6 +20,17 @@ target_compile_features(cjm_tree_sitter_dump PRIVATE cxx_std_17)
 target_link_libraries(cjm_tree_sitter_dump PRIVATE cjm_tree_sitter_cpp_grammar)
 
 if (CJM_ENABLE_SIMDJSON)
+  foreach(scenario IN ITEMS supported decode_only prohibited)
+    add_test(NAME cjm_cli_simdjson_diagnostics_${scenario}
+      COMMAND ${CMAKE_COMMAND}
+        -DCJM_EXECUTABLE=$<TARGET_FILE:cjm>
+        -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DBINARY_DIR=${PROJECT_BINARY_DIR}
+        -DSCENARIO=${scenario}
+        -P ${PROJECT_SOURCE_DIR}/tests/cmake/CheckSimdjsonDiagnostics.cmake
+    )
+  endforeach()
+
   add_executable(cjm_simdjson_dependency_smoke_tests
     ${PROJECT_SOURCE_DIR}/tests/backends/simdjson/dependency_smoke_tests.cpp
   )

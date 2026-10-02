@@ -10,7 +10,7 @@ using the same root builder. The broader #212/#213 encoder scope and
 Parent contract: [simdjson Experimental Backend MVP](simdjson-experimental-backend-mvp.md),
 epic #203. Evidence recorded on 2026-09-08 against simdjson v4.6.4.
 
-Implementation status updated on 2026-09-29. See the
+Implementation status updated on 2026-10-01. See the
 [encode runtime policy](runtime-json-semantic-profile.md#experimental-simdjson-encode-policy)
 for current scope, optional omission/null behavior, finite-value and UTF-8 checks, enum mapping, escaping coverage,
 and the meaning of success-after-failure recovery. The complete contract below includes planned
@@ -286,6 +286,36 @@ original detailed path is lost by design. Do not promise recovery from process
 termination, stack exhaustion, or invalid concurrent access to the input.
 
 ## Numeric And Mapping Compatibility
+
+### Generation Errors And Decode-Only Warnings
+
+The experimental backend distinguishes prohibited mappings from incomplete
+encoder coverage. `generate_header` first calls `validate_encode_project`,
+then `validate_decode_project`. Participating `long double` mappings are
+rejected before generating a header, including type arguments and fields of
+nested models in the project. Ignored fields are exempt. The encode check
+returning an empty diagnostic does not establish complete encoder support.
+
+After validation, a model with a supported decoder but no complete encoder
+still generates successfully. `GenerationResult.error` remains empty and
+`GenerationResult.warnings` explains the limitation. Report only the first
+blocking participating field per model, in model/field IR order, including
+model name, C++ field name, effective JSON name, type spelling, and reason.
+A parent whose child has no available encoder receives its own warning.
+Fully supported models and ignored fields do not produce these warnings.
+Fatal validation results have an empty header and no warnings.
+
+The CLI writes each warning to stderr with the prefix
+`cjm: warning: simdjson backend:` while still writing the generated header and
+returning success. Its normal success message remains on stdout. A fatal
+validation error returns failure and leaves an existing output file untouched.
+No new backend mode, runtime error category, or generated API is introduced.
+
+This preserves existing decode-only users while making the missing encoder
+visible. It does not implement container encoders or waive their #213 release
+requirements. Generator tests cover warning order/count, supported and ignored
+fields, nested dependencies, repeated deterministic generation, and fatal-error
+separation. CLI tests independently check stderr, stdout, output, and exit code.
 
 ### Floating-Point Type Boundary
 
