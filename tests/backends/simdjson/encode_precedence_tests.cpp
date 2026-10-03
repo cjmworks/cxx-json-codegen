@@ -1,11 +1,29 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstddef>
+#include <cstdlib>
 #include <new>
+
+#include "tests/fixtures/simdjson_encode_precedence.hpp"
+#include "cjm/simdjson/simdjson_encode_precedence.cjm.hpp"
 
 namespace {
 thread_local bool fail_builder_allocation = false;
 thread_local std::size_t injected_failures = 0;
+thread_local cjm::simdjson::EncodeError* observed_error = nullptr;
+thread_local std::size_t scalar_failures = 0;
+thread_local cjm::simdjson::EncodeErrorCode code_at_failure;
+
+struct DiagnosticAllocationScope {
+    explicit DiagnosticAllocationScope(cjm::simdjson::EncodeError& error) {
+        scalar_failures = 0;
+        code_at_failure = cjm::simdjson::EncodeErrorCode::none;
+        observed_error = &error;
+    }
+    ~DiagnosticAllocationScope() { observed_error = nullptr; }
+    DiagnosticAllocationScope(const DiagnosticAllocationScope&) = delete;
+    DiagnosticAllocationScope& operator=(const DiagnosticAllocationScope&) = delete;
+};
 
 // Enable injection only while calling the generated encoder or its helper.
 struct BuilderAllocationScope {
@@ -18,6 +36,33 @@ struct BuilderAllocationScope {
     BuilderAllocationScope& operator=(const BuilderAllocationScope&) = delete;
 };
 } // namespace
+
+// Keep scalar (diagnostic) and array (builder) allocations independent.
+// All replacements are confined to this test executable and paired with free.
+void* operator new(std::size_t size) {
+    if (observed_error) {
+        ++scalar_failures;
+        code_at_failure = observed_error->code;
+        throw std::bad_alloc{};
+    }
+    if (void* memory = std::malloc(size == 0 ? 1 : size)) {
+        return memory;
+    }
+    throw std::bad_alloc{};
+}
+
+void operator delete(void* memory) noexcept { std::free(memory); }
+void operator delete(void* memory, std::size_t) noexcept { std::free(memory); }
+
+void* operator new[](std::size_t size) {
+    if (void* memory = std::malloc(size == 0 ? 1 : size)) {
+        return memory;
+    }
+    throw std::bad_alloc{};
+}
+
+void operator delete[](void* memory) noexcept { std::free(memory); }
+void operator delete[](void* memory, std::size_t) noexcept { std::free(memory); }
 
 // The pinned builder uses nothrow new[] for its buffer. This replacement is
 // isolated to this executable; ordinary allocation/deallocation stays paired.
@@ -32,9 +77,6 @@ void* operator new[](std::size_t size, const std::nothrow_t&) noexcept {
         return nullptr;
     }
 }
-
-#include "tests/fixtures/simdjson_encode_precedence.hpp"
-#include "cjm/simdjson/simdjson_encode_precedence.cjm.hpp"
 
 namespace {
 using ErrorCode = cjm::simdjson::EncodeErrorCode;
@@ -126,6 +168,41 @@ TEST_CASE("root.precedence", "[simdjson][encoder][precedence]") {
             }
 
             // Reuse the same error object after every failed outcome.
+            const auto recovered =
+                cjm::simdjson::to_json(make_value(true), error);
+            REQUIRE(recovered.has_value());
+            REQUIRE(*recovered == R"({"name":"Ada"})");
+            REQUIRE(error.code == ErrorCode::none);
+            REQUIRE(error.path.empty());
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+        }
+    }
+}
+
+TEST_CASE("root.path_allocation", "[simdjson][encoder][precedence]") {
+    for (const bool fail_builder : {false, true}) {
+        DYNAMIC_SECTION("builder failure = " << fail_builder) {
+            const auto value = make_value(false);
+            const auto original = value.name;
+            cjm::simdjson::EncodeError error;
+            std::optional<std::string> output;
+            {
+                BuilderAllocationScope builder_injection(fail_builder);
+                DiagnosticAllocationScope diagnostic_injection(error);
+                output = cjm::simdjson::to_json(value, error);
+            }
+
+            REQUIRE((injected_failures > 0) == fail_builder);
+            // Injection remains armed through the catch: a fallback allocation
+            // would also fail and increase this count (or escape the root).
+            REQUIRE(scalar_failures == 1);
+            REQUIRE(code_at_failure == ErrorCode::invalid_utf8_string);
+            REQUIRE_FALSE(output.has_value());
+            REQUIRE(error.code == ErrorCode::allocation_failure);
+            REQUIRE(error.path.empty());
+            REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+            REQUIRE(value.name == original);
+
             const auto recovered =
                 cjm::simdjson::to_json(make_value(true), error);
             REQUIRE(recovered.has_value());
