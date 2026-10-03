@@ -22,7 +22,8 @@ struct DiagnosticAllocationScope {
     }
     ~DiagnosticAllocationScope() { observed_error = nullptr; }
     DiagnosticAllocationScope(const DiagnosticAllocationScope&) = delete;
-    DiagnosticAllocationScope& operator=(const DiagnosticAllocationScope&) = delete;
+    DiagnosticAllocationScope&
+    operator=(const DiagnosticAllocationScope&) = delete;
 };
 
 // Enable injection only while calling the generated encoder or its helper.
@@ -62,7 +63,9 @@ void* operator new[](std::size_t size) {
 }
 
 void operator delete[](void* memory) noexcept { std::free(memory); }
-void operator delete[](void* memory, std::size_t) noexcept { std::free(memory); }
+void operator delete[](void* memory, std::size_t) noexcept {
+    std::free(memory);
+}
 
 // The pinned builder uses nothrow new[] for its buffer. This replacement is
 // isolated to this executable; ordinary allocation/deallocation stays paired.
@@ -212,4 +215,31 @@ TEST_CASE("root.path_allocation", "[simdjson][encoder][precedence]") {
             REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
         }
     }
+}
+
+TEST_CASE("root.copy_allocation", "[simdjson][encoder][precedence]") {
+    const app::EncodePrecedence value{std::string(1024, 'A')};
+    const auto expected = std::string{"{\"name\":\""} + value.name + "\"}";
+    cjm::simdjson::EncodeError error;
+    std::optional<std::string> output;
+    {
+        BuilderAllocationScope builder_injection(false);
+        DiagnosticAllocationScope copy_injection(error);
+        output = cjm::simdjson::to_json(value, error);
+    }
+
+    REQUIRE(injected_failures == 0);
+    REQUIRE(scalar_failures == 1);
+    REQUIRE(code_at_failure == ErrorCode::none);
+    REQUIRE_FALSE(output.has_value());
+    REQUIRE(error.code == ErrorCode::allocation_failure);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+
+    const auto recovered = cjm::simdjson::to_json(value, error);
+    REQUIRE(recovered.has_value());
+    REQUIRE(*recovered == expected);
+    REQUIRE(error.code == ErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
 }
