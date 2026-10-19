@@ -133,6 +133,29 @@ if (CJM_ENABLE_SIMDJSON)
   target_link_libraries(cjm_simdjson_enum_encode_generated_tests PRIVATE simdjson::simdjson Catch2::Catch2WithMain)
   catch_discover_tests(cjm_simdjson_enum_encode_generated_tests TEST_PREFIX cjm_simdjson_enum_encode_generated_tests.)
 
+  add_executable(cjm_simdjson_root_fault_codegen
+    backends/simdjson/generate_root_fault.cpp
+  )
+  target_link_libraries(cjm_simdjson_root_fault_codegen
+    PRIVATE cjm_simdjson_generator
+  )
+
+  set(CJM_ROOT_FAULT_HEADER
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/root_fault.cjm.hpp"
+  )
+  add_custom_command(
+    OUTPUT "${CJM_ROOT_FAULT_HEADER}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+      "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    COMMAND $<TARGET_FILE:cjm_simdjson_root_fault_codegen>
+      "${CJM_ROOT_FAULT_HEADER}"
+    DEPENDS cjm_simdjson_root_fault_codegen
+    VERBATIM
+  )
+  add_custom_target(cjm_simdjson_root_fault_header
+    DEPENDS "${CJM_ROOT_FAULT_HEADER}"
+  )
+
   cjm_add_simdjson_test(cjm_simdjson_encode_precedence_tests
     SOURCE backends/simdjson/encode_precedence_tests.cpp
     MODEL fixtures/simdjson_encode_precedence.hpp
