@@ -156,6 +156,25 @@ if (CJM_ENABLE_SIMDJSON)
     DEPENDS "${CJM_ROOT_FAULT_HEADER}"
   )
 
+  add_executable(cjm_simdjson_root_fault_tests
+    backends/simdjson/root_fault_test.cpp
+  )
+  target_compile_features(cjm_simdjson_root_fault_tests PRIVATE cxx_std_17)
+  target_include_directories(cjm_simdjson_root_fault_tests PRIVATE
+    "${PROJECT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated"
+  )
+  target_link_libraries(cjm_simdjson_root_fault_tests PRIVATE
+    simdjson::simdjson
+    Catch2::Catch2WithMain
+  )
+  add_dependencies(cjm_simdjson_root_fault_tests
+    cjm_simdjson_root_fault_header
+  )
+  catch_discover_tests(cjm_simdjson_root_fault_tests
+    TEST_PREFIX cjm_simdjson_root_fault_tests.
+  )
+
   cjm_add_simdjson_test(cjm_simdjson_encode_precedence_tests
     SOURCE backends/simdjson/encode_precedence_tests.cpp
     MODEL fixtures/simdjson_encode_precedence.hpp

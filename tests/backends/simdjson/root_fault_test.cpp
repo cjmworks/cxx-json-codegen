@@ -19,3 +19,23 @@ bool encode_object(::simdjson::builder::string_builder& builder,
 }
 
 } // namespace cjm::simdjson::detail
+
+TEST_CASE("root.length_error", "[simdjson][encoder][precedence]") {
+    cjm::simdjson::EncodeError error;
+
+    const auto failed =
+        cjm::simdjson::to_json(app::RootEncodeFault{true}, error);
+
+    REQUIRE_FALSE(failed.has_value());
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::size_limit_exceeded);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+
+    const auto recovered =
+        cjm::simdjson::to_json(app::RootEncodeFault{false}, error);
+    REQUIRE(recovered.has_value());
+    REQUIRE(*recovered == "{}");
+    REQUIRE(error.code == cjm::simdjson::EncodeErrorCode::none);
+    REQUIRE(error.path.empty());
+    REQUIRE(error.runtime_error == ::simdjson::SUCCESS);
+}
