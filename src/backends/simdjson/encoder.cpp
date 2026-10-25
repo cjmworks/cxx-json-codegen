@@ -75,12 +75,21 @@ unsupported_value_encode_reason(const metadata::FieldType& type,
         return {};
     }
 
+    if (type.kind == metadata::FieldTypeKind::Vector &&
+        type.arguments.size() == 1 &&
+        type.arguments[0].kind == metadata::FieldTypeKind::SignedInteger) {
+        return {};
+    }
+
     if (type.kind == metadata::FieldTypeKind::Optional) {
         if (type.arguments.size() != 1) {
             return "optional requires exactly one type argument";
         }
         if (type.arguments[0].kind == metadata::FieldTypeKind::Optional) {
             return "directly nested optional types are not supported";
+        }
+        if (type.arguments[0].kind == metadata::FieldTypeKind::Vector) {
+            return "this type has no implemented encoder";
         }
         return unsupported_value_encode_reason(type.arguments[0],
                                                encoded_models);
@@ -252,6 +261,23 @@ void generate_value_encode(std::ostringstream& out,
             << indent << "    return false;\n"
             << indent << "}\n";
         return;
+    case metadata::FieldTypeKind::Vector: {
+        const auto expression = "(" + std::string(value_expression) + ")";
+        out << indent << "{\n"
+            << indent << "    builder.start_array();\n"
+            << indent << "    bool first_element = true;\n"
+            << indent << "    for (const auto& element : " << expression
+            << ") {\n"
+            << indent << "        if (!first_element) {\n"
+            << indent << "            builder.append_comma();\n"
+            << indent << "        }\n"
+            << indent << "        first_element = false;\n"
+            << indent << "        builder.append(element);\n"
+            << indent << "    }\n"
+            << indent << "    builder.end_array();\n"
+            << indent << "}\n";
+        return;
+    }
     default:
         throw std::logic_error("generate_value_encode: unimplemented type");
     }
@@ -341,7 +367,8 @@ void generate_scalar_object_encode_function(
             << "    builder.append_colon();\n";
 
         if (field.type.kind == metadata::FieldTypeKind::Optional ||
-            field.type.kind == metadata::FieldTypeKind::UserDefined) {
+            field.type.kind == metadata::FieldTypeKind::UserDefined ||
+            field.type.kind == metadata::FieldTypeKind::Vector) {
             generate_value_encode(out, field, field.type, "value." + field.name,
                                   enums, omit_disengaged ? 2 : 1);
         } else if (field.type.kind == metadata::FieldTypeKind::String) {

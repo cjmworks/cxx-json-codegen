@@ -1130,9 +1130,10 @@ TEST_CASE("warning.models", "[simdjson][encoder]") {
             field.json.ignored = item.ignored;
             field.type = {FieldTypeKind::SignedInteger, "int", "int"};
             if (item.container) {
-                const auto inner = field.type;
+                const FieldType inner{FieldTypeKind::String, "std::string",
+                                      "std::string"};
                 field.type = {FieldTypeKind::Vector,
-                              "std::vector<int>",
+                              "std::vector<std::string>",
                               "std::vector",
                               {inner}};
             }
@@ -1159,7 +1160,8 @@ TEST_CASE("warning.models", "[simdjson][encoder]") {
                 REQUIRE(result.warnings.size() == 1);
                 for (const auto* fragment :
                      {"model 'app::User'", "field 'scores'",
-                      "json field 'points'", "C++ type 'std::vector<int>'",
+                      "json field 'points'",
+                      "C++ type 'std::vector<std::string>'",
                       "this type has no implemented encoder",
                       "generated decoder only"}) {
                     REQUIRE(result.warnings[0].find(fragment) !=
@@ -1196,7 +1198,7 @@ TEST_CASE("warning.reasons", "[simdjson][encoder]") {
     } cases[] = {
         {"scalar", integer, {}, ""},
         {"optional", optional, {}, ""},
-        {"container", vector, {}, "this type has no implemented encoder"},
+        {"integer_vector", vector, {}, ""},
         {"optional_container",
          {FieldTypeKind::Optional,
           "std::optional<std::vector<int>>",
@@ -1643,4 +1645,41 @@ TEST_CASE("validate_encode.allowed_type", "[simdjson][encoder]") {
     project.types = {model};
     REQUIRE(cjm::generator::simdjson::detail::validate_encode_project(project)
                 .empty());
+}
+
+TEST_CASE("generate_header.vector_int", "[simdjson][encoder]") {
+    using namespace cjm::metadata;
+
+    FieldModel field;
+    field.name = "values";
+    field.json.name = "values";
+    field.type = {
+        FieldTypeKind::Vector,
+        "std::vector<int>",
+        "std::vector",
+        {{FieldTypeKind::SignedInteger, "int", "int"}},
+    };
+
+    TypeModel model;
+    model.name = "VectorValues";
+    model.qualified_name = "app::VectorValues";
+    model.fields = {field};
+
+    ProjectModel project;
+    project.types = {model};
+
+    const auto result = cjm::generator::simdjson::generate_header(project);
+
+    INFO(result.error);
+    REQUIRE(result.success);
+    REQUIRE(result.error.empty());
+    REQUIRE(result.warnings.empty());
+    REQUIRE(result.header.find("to_json<::app::VectorValues>") !=
+            std::string::npos);
+    REQUIRE(result.header.find("builder.start_array();") != std::string::npos);
+    REQUIRE(result.header.find("for (const auto& element : (value.values))") !=
+            std::string::npos);
+    REQUIRE(result.header.find("builder.append(element);") !=
+            std::string::npos);
+    REQUIRE(result.header.find("builder.end_array();") != std::string::npos);
 }
